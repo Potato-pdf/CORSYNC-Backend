@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Src/">
+    <Project Path="Src/CORSYNC.Api/CORSYNC.Api.csproj" />
+    <Project Path="Src/CORSYNC.Core/CORSYNC.Core.csproj" />
+    <Project Path="Src/CORSYNC.Infrastructure/CORSYNC.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/CORSYNC.Tests/CORSYNC.Tests.csproj" />
+  </Folder>
+</Solution>
