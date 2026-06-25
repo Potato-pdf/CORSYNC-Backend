@@ -36,12 +36,12 @@ else
 }
 
 // Add CORSYNC telemetry services
-builder.Services.AddSingleton<TelemetryChannel>();
-builder.Services.AddSingleton<ITelemetryProcessor, TelemetryProcessor>();
+//builder.Services.AddSingleton<TelemetryChannel>();
+//builder.Services.AddSingleton<ITelemetryProcessor, TelemetryProcessor>();
 
-// Register Hosted Services (Workers)
-builder.Services.AddHostedService<MqttTelemetryWorker>();
-builder.Services.AddHostedService<SignalRBroadcastWorker>();
+//// Register Hosted Services (Workers)
+//builder.Services.AddHostedService<MqttTelemetryWorker>();
+//builder.Services.AddHostedService<SignalRBroadcastWorker>();
 
 // Add API Controllers and SignalR WebSockets
 builder.Services.AddControllers();
@@ -76,16 +76,30 @@ using (var scope = app.Services.CreateScope())
 {
     var adminDb = scope.ServiceProvider.GetRequiredService<AdminDbContext>();
     adminDb.Database.EnsureCreated();
-    
+
     var telemetryDb = scope.ServiceProvider.GetRequiredService<TelemetryDbContext>();
     telemetryDb.Database.EnsureCreated();
+
+    telemetryDb.Database.ExecuteSqlRaw(@"
+        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='LecturasCorazon' AND xtype='U')
+        BEGIN
+            CREATE TABLE LecturasCorazon (
+                Id          INT IDENTITY(1,1) PRIMARY KEY,
+                DispositivoId NVARCHAR(50) NOT NULL,
+                IR          BIGINT NOT NULL,
+                BPM         DECIMAL(5,1) NOT NULL,
+                BPMPromedio INT NOT NULL,
+                FechaHora   DATETIME2 NOT NULL
+            )
+        END
+    ");
 }
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
+//if (app.Environment.IsDevelopment())
+//{
+app.UseSwagger();
     app.UseSwaggerUI();
-}
+//}
 
 app.UseRouting();
 
@@ -93,6 +107,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHub<TelemetryHub>("/telemetryHub");
+//app.MapHub<TelemetryHub>("/telemetryHub");
 
 app.Run();
