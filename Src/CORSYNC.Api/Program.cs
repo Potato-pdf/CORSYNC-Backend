@@ -36,12 +36,10 @@ else
 }
 
 // Add CORSYNC telemetry services
-//builder.Services.AddSingleton<TelemetryChannel>();
-//builder.Services.AddSingleton<ITelemetryProcessor, TelemetryProcessor>();
+builder.Services.AddSingleton<ITelemetryProcessor, TelemetryProcessor>();
 
-//// Register Hosted Services (Workers)
-//builder.Services.AddHostedService<MqttTelemetryWorker>();
-//builder.Services.AddHostedService<SignalRBroadcastWorker>();
+// Register Hosted Services (Workers)
+builder.Services.AddHostedService<TelemetryDbFlushWorker>();
 
 // Add API Controllers and SignalR WebSockets
 builder.Services.AddControllers();
@@ -61,6 +59,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration["TokenConfiguration:Audience"] ?? "CORSYNCClients",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
                 builder.Configuration["TokenConfiguration:SecretKey"] ?? "LLAVE_SECRETA_SUPER_LARGA_Y_COMPLEJA_PARA_JWT_2026"))
+        };
+
+        // Permitir pasar el JWT Token por Query String para SignalR WebSockets
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/telemetryHub"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -107,6 +120,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-//app.MapHub<TelemetryHub>("/telemetryHub");
+app.MapHub<TelemetryHub>("/telemetryHub");
 
 app.Run();
