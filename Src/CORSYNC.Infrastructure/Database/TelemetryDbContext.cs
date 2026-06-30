@@ -21,6 +21,8 @@ namespace CORSYNC.Infrastructure.Database
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.DispositivoId).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.BPM).HasColumnType("decimal(5,1)");
+                entity.Property(e => e.GsrVoltaje).HasColumnType("decimal(5,3)");
+                entity.Property(e => e.Aura).HasMaxLength(50);
             });
         }
     }
