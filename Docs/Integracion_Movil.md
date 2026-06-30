@@ -4,6 +4,90 @@ Esta guía explica los pasos necesarios para conectar la aplicación móvil al b
 
 ---
 
+## 0. Autenticación y Perfil de Usuario (REST API)
+
+Antes de iniciar la conexión de telemetría, la aplicación móvil debe autenticar al usuario o registrar una cuenta nueva. El backend expone un conjunto de endpoints REST para gestionar el ciclo de vida del usuario.
+
+### Endpoints de Autenticación
+
+| Método | Endpoint | Autenticación | Descripción |
+| :--- | :--- | :---: | :--- |
+| **`POST`** | `/api/Auth/register` | Ninguna (Público) | Registra una nueva cuenta de usuario (forzando rol `Cliente`). |
+| **`POST`** | `/api/Auth/login` | Ninguna (Público) | Valida credenciales y retorna un token JWT válido por 2 horas. |
+| **`GET`** | `/api/Auth/profile` | **JWT Requerido** | Retorna la información de perfil del usuario autenticado. |
+
+---
+
+### Contratos de Datos (JSON)
+
+#### 1. Registro de Usuario (`POST /api/Auth/register`)
+* **Cuerpo de la Petición (Request):**
+```json
+{
+  "username": "nombre_usuario",
+  "email": "usuario@ejemplo.com",
+  "password": "PasswordSeguro123!",
+  "nombreCompleto": "Nombre Completo del Usuario"
+}
+```
+* **Respuesta Exitosa (`201 Created`):**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiration": "2026-06-30T07:30:00Z",
+  "user": {
+    "id": 3,
+    "username": "nombre_usuario",
+    "email": "usuario@ejemplo.com",
+    "nombreCompleto": "Nombre Completo del Usuario",
+    "role": "Cliente",
+    "fechaRegistro": "2026-06-30T05:30:00Z"
+  }
+}
+```
+* **Respuestas de Error:**
+  - **`400 Bad Request`**: Datos inválidos o faltantes (ej: contraseña menor a 8 caracteres).
+  - **`409 Conflict`**: El nombre de usuario o correo electrónico ya están en uso.
+
+#### 2. Inicio de Sesión (`POST /api/Auth/login`)
+* **Cuerpo de la Petición (Request):**
+```json
+{
+  "username": "nombre_usuario",
+  "password": "PasswordSeguro123!"
+}
+```
+* **Respuesta Exitosa (`200 OK`):**
+Retorna la misma estructura `AuthResponse` que el registro (token JWT + información del usuario).
+* **Respuestas de Error:**
+  - **`401 Unauthorized`**: Usuario o contraseña incorrectos, o usuario inactivo.
+
+#### 3. Obtener Perfil (`GET /api/Auth/profile`)
+* **Cabecera requerida:** `Authorization: Bearer <TU_JWT_TOKEN>`
+* **Respuesta Exitosa (`200 OK`):**
+```json
+{
+  "id": 3,
+  "username": "nombre_usuario",
+  "email": "usuario@ejemplo.com",
+  "nombreCompleto": "Nombre Completo del Usuario",
+  "role": "Cliente",
+  "fechaRegistro": "2026-06-30T05:30:00Z"
+}
+```
+
+---
+
+### Almacenamiento Seguro del Token en la App Móvil
+
+Se recomienda almacenar el token de forma persistente y segura en el dispositivo móvil:
+- **Flutter:** Usar el paquete `flutter_secure_storage`.
+- **React Native / Expo:** Usar `expo-secure-store` o `react-native-keychain`.
+
+Una vez obtenido y almacenado el token, este debe ser adjuntado a la URL del WebSocket en el parámetro `access_token` para poder conectar exitosamente a SignalR (ver sección siguiente).
+
+---
+
 ## 1. Configuración de Conexión
 
 La aplicación móvil se conecta al servidor a través de WebSockets utilizando la biblioteca de cliente oficial de SignalR. 
@@ -91,9 +175,12 @@ class TelemetryService {
       double bpm = lectura["bpm"];
       int bpmPromedio = lectura["bpmPromedio"];
       int irValue = lectura["ir"];
+      int gsrRaw = lectura["gsrRaw"] ?? 0;
+      double gsrVoltaje = lectura["gsrVoltaje"] ?? 0.0;
+      String aura = lectura["aura"] ?? "";
       String timestamp = lectura["fechaHora"];
 
-      print("BPM Recibido: $bpm | Promedio: $bpmPromedio | IR: $irValue");
+      print("BPM Recibido: $bpm | Promedio: $bpmPromedio | IR: $irValue | GSR Raw: $gsrRaw | Voltaje: $gsrVoltaje | Aura: $aura");
       // TODO: Actualizar gráfica en tiempo real en la UI
     }
   }
@@ -122,7 +209,7 @@ const connection = new signalR.HubConnectionBuilder()
 
 // Registrar el manejador del evento de recepción de datos
 connection.on("ReceiveTelemetry", (lectura) => {
-    console.log(`BPM: ${lectura.bpm}, Promedio: ${lectura.bpmPromedio}, IR: ${lectura.ir}`);
+    console.log(`BPM: ${lectura.bpm}, Promedio: ${lectura.bpmPromedio}, IR: ${lectura.ir}, GSR Raw: ${lectura.gsrRaw}, Voltaje: ${lectura.gsrVoltaje}V, Aura: ${lectura.aura}`);
     // TODO: Actualizar estado de React / Gráfica
 });
 
@@ -162,13 +249,21 @@ El JSON que recibirá la aplicación móvil representa el objeto de telemetría 
 ```json
 {
   "id": 0,
-  "dispositivoId": "ESP32_MAX30102_01",
-  "bpm": 74.2,
-  "bpmPromedio": 73,
-  "ir": 102432,
-  "fechaHora": "2026-06-27T15:52:12.345Z"
+  "dispositivoId": "ESP32_MAX30102",
+  "ir": 87432,
+  "bpm": 72.5,
+  "bpmPromedio": 71,
+  "gsrRaw": 1340,
+  "gsrVoltaje": 1.079,
+  "aura": "Roja",
+  "fechaHora": "2026-06-29T22:51:35Z"
 }
 ```
 
+### Descripción de Campos Adicionales (GSR & Aura):
+* **`gsrRaw`** (int): Valor analógico crudo de conductividad de la piel (Galvanic Skin Response).
+* **`gsrVoltaje`** (decimal): Voltaje equivalente del sensor (de 0.0V a 3.3V) según la resistencia cutánea.
+* **`aura`** (string): Clasificación calculada para representar el nivel de estrés o estado emocional (ej: `"Roja"`, `"Azul"`, `"Verde"`).
+
 > [!TIP]
-> **Optimización visual**: Utiliza el valor de `ir` (Infrarrojo) para dibujar la onda del fotopletismograma (la curva del pulso cardíaco) y el valor de `bpmPromedio` como el número estable a mostrar en pantalla.
+> **Optimización visual**: Utiliza el valor de `ir` (Infrarrojo) para dibujar la onda del fotopletismograma (la curva del pulso cardíaco) y el valor de `bpmPromedio` como el número estable a mostrar en pantalla. El valor de `gsrVoltaje` y `aura` te permitirán pintar indicadores de estrés y cambiar dinámicamente colores de interfaz inspirados en el color del aura.
