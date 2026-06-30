@@ -46,6 +46,9 @@ namespace CORSYNC.Infrastructure.Telemetry
 
                 decimal avgBpm = _bpmWindow.Average();
                 lectura.BPMPromedio = (int)Math.Round(avgBpm, MidpointRounding.AwayFromZero);
+
+                // El backend calcula el color del aura dinámicamente
+                lectura.Aura = CalculateAura(lectura.BPM, lectura.GsrVoltaje);
             }
 
             return lectura;
@@ -73,19 +76,58 @@ namespace CORSYNC.Infrastructure.Telemetry
                 decimal avgBpm = _buffer.Average(l => l.BPM);
                 double avgIr = _buffer.Average(l => l.IR);
                 int avgBpmPromedio = (int)Math.Round(_buffer.Average(l => l.BPMPromedio), MidpointRounding.AwayFromZero);
+                double avgGsrRaw = _buffer.Average(l => l.GsrRaw);
+                double avgGsrVoltaje = _buffer.Average(l => (double)l.GsrVoltaje);
+
+                decimal consolidatedBpm = Math.Round(avgBpm, 1, MidpointRounding.AwayFromZero);
+                decimal consolidatedGsrVoltaje = Math.Round((decimal)avgGsrVoltaje, 3, MidpointRounding.AwayFromZero);
 
                 var consolidated = new LecturaCorazon
                 {
                     DispositivoId = deviceId,
-                    BPM = Math.Round(avgBpm, 1, MidpointRounding.AwayFromZero),
+                    BPM = consolidatedBpm,
                     IR = (long)Math.Round(avgIr, MidpointRounding.AwayFromZero),
                     BPMPromedio = avgBpmPromedio,
+                    GsrRaw = (int)Math.Round(avgGsrRaw, MidpointRounding.AwayFromZero),
+                    GsrVoltaje = consolidatedGsrVoltaje,
+                    Aura = CalculateAura(consolidatedBpm, consolidatedGsrVoltaje),
                     FechaHora = DateTime.UtcNow
                 };
 
                 _buffer.Clear();
                 return consolidated;
             }
+        }
+
+        private string CalculateAura(decimal bpm, decimal gsrVoltaje)
+        {
+            // Alta activación física y emocional (Estrés/Enfado/Intensidad)
+            if (bpm > 100m && gsrVoltaje > 2.0m)
+            {
+                return "Roja";
+            }
+            // Activación física o emocional moderada-alta (Ansiedad/Entusiasmo/Esfuerzo)
+            else if (bpm > 85m && gsrVoltaje > 1.5m)
+            {
+                return "Naranja";
+            }
+            // Enfoque, concentración o nerviosismo leve (Alerta/Concentración)
+            else if (bpm > 75m && gsrVoltaje > 1.0m)
+            {
+                return "Amarilla";
+            }
+            // Estado neutro, tranquilidad normal (Calma/Estabilidad)
+            else if (bpm >= 65m && gsrVoltaje >= 0.5m)
+            {
+                return "Verde";
+            }
+            // Estado de relajación profunda (Paz/Meditación)
+            else if (bpm < 65m || gsrVoltaje < 0.5m)
+            {
+                return "Azul";
+            }
+
+            return "Verde"; // Default
         }
     }
 }
