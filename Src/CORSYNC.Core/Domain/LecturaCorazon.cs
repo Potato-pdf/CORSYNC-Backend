@@ -21,6 +21,14 @@ namespace CORSYNC.Core.Domain
 
         public int BPMPromedio { get; set; }
 
+        public int GsrRaw { get; set; }
+
+        [Column(TypeName = "decimal(5,3)")]
+        public decimal GsrVoltaje { get; set; }
+
+        [MaxLength(50)]
+        public string? Aura { get; set; }
+
         public DateTime FechaHora { get; set; } = DateTime.UtcNow;
     }
 }
