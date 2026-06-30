@@ -10,7 +10,7 @@ CORSYNC es una plataforma híbrida que unifica la gestión administrativa y la t
 
 ### Módulos Principales
 1. **Módulo de Administración**: Diseñado para el negocio. Administra el catálogo de materias primas, proveedores, cálculo de cotizaciones de productos, comentarios y autenticación de usuarios.
-2. **Módulo de Telemetría (El Puente / Bridge)**: Diseñado para la salud y rendimiento. Actúa como un intermediario bidireccional de baja latencia que recibe datos de sensores del prototipo IoT (ej. pulso e infrarrojos del `MAX30102`), los limpia en tiempo real y los transmite a la aplicación móvil.
+2. **Módulo de Telemetría (El Puente / Bridge)**: Diseñado para la salud y rendimiento. Actúa como un intermediario bidireccional de baja latencia que recibe datos de sensores del prototipo IoT (pulso e infrarrojo del `MAX30102`, así como conductancia galvánica `GSR` y clasificación de `Aura`), los limpia y consolida en tiempo real y los transmite a la aplicación móvil.
 
 ---
 
