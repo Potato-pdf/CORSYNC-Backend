@@ -34,9 +34,35 @@ namespace CORSYNC.Infrastructure.Database
                 new RecetaProducto { Id = 2, NombreProducto = "Espejo CORSYNC Standard", MateriaPrimaId = 5, CantidadRequerida = 1 }  // 1 ESP32
             );
 
+            modelBuilder.Entity<Usuario>(entity =>
+            {
+                entity.HasIndex(u => u.Username).IsUnique();
+                entity.HasIndex(u => u.Email).IsUnique();
+            });
+
             modelBuilder.Entity<Usuario>().HasData(
-                new Usuario { Id = 1, Username = "admin", PasswordHash = "admin123", Role = "Admin" }, // Simplified password for demo
-                new Usuario { Id = 2, Username = "cliente", PasswordHash = "cliente123", Role = "Cliente" }
+                new Usuario 
+                { 
+                    Id = 1, 
+                    Username = "admin", 
+                    Email = "admin@corsync.com",
+                    PasswordHash = "$2a$11$UZ8mNYO7Ss0T41oYzfqHt.ILCFlrmVxEUZr6/i1cdBZ1qAxBhrBj.", 
+                    NombreCompleto = "Administrador CORSYNC",
+                    Role = "Admin",
+                    FechaRegistro = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Activo = true
+                },
+                new Usuario 
+                { 
+                    Id = 2, 
+                    Username = "cliente", 
+                    Email = "cliente@corsync.com",
+                    PasswordHash = "$2a$11$fOK8ihp4BxXTrxjzGqw8Gu6Zdv1ZFFmA4XMX5KD26UjdsyLaovOfO", 
+                    NombreCompleto = "Cliente Demostración",
+                    Role = "Cliente",
+                    FechaRegistro = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    Activo = true
+                }
             );
         }
     }
