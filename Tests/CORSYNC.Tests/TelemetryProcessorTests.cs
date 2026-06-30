@@ -108,8 +108,8 @@ namespace CORSYNC.Tests
         public void FlushBuffer_WithMultipleReadings_ShouldReturnAveragedConsolidatedReading()
         {
             // Arrange
-            var r1 = new LecturaCorazon { DispositivoId = "ESP32_Test", BPM = 70m, IR = 100000, BPMPromedio = 70 };
-            var r2 = new LecturaCorazon { DispositivoId = "ESP32_Test", BPM = 80m, IR = 110000, BPMPromedio = 75 };
+            var r1 = new LecturaCorazon { DispositivoId = "ESP32_Test", BPM = 70m, IR = 100000, BPMPromedio = 70, GsrRaw = 1000, GsrVoltaje = 0.8m };
+            var r2 = new LecturaCorazon { DispositivoId = "ESP32_Test", BPM = 80m, IR = 110000, BPMPromedio = 75, GsrRaw = 1200, GsrVoltaje = 1.0m };
             
             _processor.AddToBuffer(r1);
             _processor.AddToBuffer(r2);
@@ -123,9 +123,35 @@ namespace CORSYNC.Tests
             Assert.Equal(75m, consolidated.BPM); // (70+80)/2
             Assert.Equal(105000L, consolidated.IR); // (100000+110000)/2
             Assert.Equal(73, consolidated.BPMPromedio); // Round(72.5) = 73
+            Assert.Equal(1100, consolidated.GsrRaw); // (1000+1200)/2
+            Assert.Equal(0.9m, consolidated.GsrVoltaje); // (0.8+1.0)/2
+            Assert.Equal("Verde", consolidated.Aura); // CalculateAura(75, 0.9) -> "Verde"
             
             // Further flushes should be null
             Assert.Null(_processor.FlushBuffer());
+        }
+
+        [Theory]
+        [InlineData(110.0, 2.5, "Roja")]      // BPM > 100, GSR > 2.0
+        [InlineData(90.0, 1.8, "Naranja")]    // BPM > 85, GSR > 1.5
+        [InlineData(80.0, 1.2, "Amarilla")]   // BPM > 75, GSR > 1.0
+        [InlineData(70.0, 0.8, "Verde")]      // BPM >= 65, GSR >= 0.5
+        [InlineData(60.0, 0.3, "Azul")]       // BPM < 65 or GSR < 0.5
+        public void Smooth_ShouldCalculateCorrectAuraColor(double bpm, double gsrVoltaje, string expectedAura)
+        {
+            // Arrange
+            var reading = new LecturaCorazon 
+            { 
+                BPM = (decimal)bpm, 
+                GsrVoltaje = (decimal)gsrVoltaje,
+                IR = 100000 
+            };
+
+            // Act
+            var smoothed = _processor.Smooth(reading);
+
+            // Assert
+            Assert.Equal(expectedAura, smoothed.Aura);
         }
     }
 }
