@@ -4,6 +4,15 @@ Esta guía detalla cómo configurar el microcontrolador (ej. **ESP32**) del prot
 
 ---
 
+## 0. Resumen de la Migración (Adiós MQTT Broker, Hola WebSockets)
+
+Anteriormente, el prototipo IoT publicaba datos en un Broker MQTT externo (ej. HiveMQ Cloud). Con esta actualización:
+* **Eliminado**: Ya no se requiere inicializar el cliente MQTT ni conectarse a HiveMQ Cloud en el firmware.
+* **Nuevo**: El ESP32 abrirá un WebSocket directo al Backend de CORSYNC (`/telemetryHub`) que actuará como el servidor de WebSockets central (Bridge).
+* **Flujo**: El ESP32 se conecta, se registra y espera a que el servidor le ordene enviar datos (`StartTelemetry`). Cuando recibe la orden, comienza a hacer push de los datos directo por el socket y se detiene cuando el servidor se lo pide (`StopTelemetry`).
+
+---
+
 ## 1. El Reto de SignalR en IoT y Cómo Resolverlo
 
 ASP.NET Core SignalR utiliza un protocolo sobre WebSockets que requiere dos pasos de handshake (negociación):
@@ -95,12 +104,14 @@ Cuando el sensor esté activo y generando lecturas, el ESP32 debe enviarlas invo
   "target": "SendTelemetry",
   "arguments": [
     {
-      "dispositivoId": "ESP32_MAX30102_01",
-      "bpm": 72.4,
-      "ir": 101450
+      "dispositivoId": "ESP32_MAX30102",
+      "ir": 87432,
+      "bpm": 72.5,
+      "gsrRaw": 1340,
+      "gsrVoltaje": 1.079
     }
   ]
-}
+} 
 ```
 
 ---
@@ -229,11 +240,13 @@ void loop() {
   if (isMeasuring && millis() - lastSendTime >= sendInterval) {
     lastSendTime = millis();
     
-    // Simulación de lectura física del sensor MAX30102
-    float bpm = 75.0 + random(-2, 3); // Cambiar por lectura real del sensor
-    long irValue = 102000 + random(-500, 500); // Cambiar por lectura real del sensor
+    // Simulación de lectura física de sensores (MAX30102 y GSR)
+    float bpm = 72.5 + (random(-10, 11) / 10.0); // Simular 72.5 + ruido
+    long irValue = 87000 + random(-1000, 1000); 
+    int gsrRaw = 1300 + random(-50, 50);
+    float gsrVoltaje = (gsrRaw * 3.3) / 4095.0; // Conversión ADC a voltaje (ej. ESP32 12-bit)
     
-    // Crear payload JSON
+    // Crear payload JSON para SignalR (sin 'aura' ni 'bpmPromedio', se calculan en el backend)
     JsonDocument doc;
     doc["type"] = 1;
     doc["target"] = "SendTelemetry";
@@ -243,13 +256,15 @@ void loop() {
     lectura["dispositivoId"] = deviceId;
     lectura["bpm"] = bpm;
     lectura["ir"] = irValue;
+    lectura["gsrRaw"] = gsrRaw;
+    lectura["gsrVoltaje"] = gsrVoltaje;
     
     String output;
     serializeJson(doc, output);
-    output += recordSeparator; // Agregar delimitador
+    output += recordSeparator; // Agregar delimitador SignalR
     
     webSocket.sendTXT(output);
-    Serial.println("[WS] Telemetría enviada: BPM=" + String(bpm) + ", IR=" + String(irValue));
+    Serial.println("[WS] Telemetría enviada: BPM=" + String(bpm) + ", GSR=" + String(gsrRaw) + " (" + String(gsrVoltaje) + "V)");
   }
 }
 ```
