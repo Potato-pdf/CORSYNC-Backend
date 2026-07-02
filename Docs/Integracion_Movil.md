@@ -4,83 +4,258 @@ Esta guía explica los pasos necesarios para conectar la aplicación móvil al b
 
 ---
 
-## 0. Autenticación y Perfil de Usuario (REST API)
+## 0. Endpoints REST API de la Aplicación Móvil
 
-Antes de iniciar la conexión de telemetría, la aplicación móvil debe autenticar al usuario o registrar una cuenta nueva. El backend expone un conjunto de endpoints REST para gestionar el ciclo de vida del usuario.
-
-### Endpoints de Autenticación
-
-| Método | Endpoint | Autenticación | Descripción |
-| :--- | :--- | :---: | :--- |
-| **`POST`** | `/api/Auth/register` | Ninguna (Público) | Registra una nueva cuenta de usuario (forzando rol `Cliente`). |
-| **`POST`** | `/api/Auth/login` | Ninguna (Público) | Valida credenciales y retorna un token JWT válido por 2 horas. |
-| **`GET`** | `/api/Auth/profile` | **JWT Requerido** | Retorna la información de perfil del usuario autenticado. |
+Para soportar las características de la aplicación móvil (autenticación, perfil de usuario, lecturas de aura histórica y gamificación), el backend provee los siguientes módulos de APIs REST. Todas las peticiones deben utilizar cabeceras JSON (`Content-Type: application/json`).
 
 ---
 
-### Contratos de Datos (JSON)
+### 1. Módulo: Autenticación (`api/Auth`)
 
-#### 1. Registro de Usuario (`POST /api/Auth/register`)
-* **Cuerpo de la Petición (Request):**
-```json
-{
-  "username": "nombre_usuario",
-  "email": "usuario@ejemplo.com",
-  "password": "PasswordSeguro123!",
-  "nombreCompleto": "Nombre Completo del Usuario"
-}
-```
-* **Respuesta Exitosa (`201 Created`):**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiration": "2026-06-30T07:30:00Z",
-  "user": {
-    "id": 3,
-    "username": "nombre_usuario",
-    "email": "usuario@ejemplo.com",
-    "nombreCompleto": "Nombre Completo del Usuario",
-    "role": "Cliente",
-    "fechaRegistro": "2026-06-30T05:30:00Z"
-  }
-}
-```
-* **Respuestas de Error:**
-  - **`400 Bad Request`**: Datos inválidos o faltantes (ej: contraseña menor a 8 caracteres).
-  - **`409 Conflict`**: El nombre de usuario o correo electrónico ya están en uso.
+Gestiona el inicio de sesión, registro de usuarios, renovación de tokens mediante Refresh Tokens y cierre de sesión.
 
-#### 2. Inicio de Sesión (`POST /api/Auth/login`)
-* **Cuerpo de la Petición (Request):**
-```json
-{
-  "username": "nombre_usuario",
-  "password": "PasswordSeguro123!"
-}
-```
-* **Respuesta Exitosa (`200 OK`):**
-Retorna la misma estructura `AuthResponse` que el registro (token JWT + información del usuario).
-* **Respuestas de Error:**
-  - **`401 Unauthorized`**: Usuario o contraseña incorrectos, o usuario inactivo.
+| Método | Endpoint | Autenticación | Descripción |
+| :--- | :--- | :---: | :--- |
+| **`POST`** | `/api/Auth/register` | Público | Registra un usuario y devuelve tokens JWT + Refresh. |
+| **`POST`** | `/api/Auth/login` | Público | Valida credenciales y devuelve tokens JWT + Refresh. |
+| **`POST`** | `/api/Auth/logout` | **JWT** | Cierra la sesión revocando el Refresh Token. |
+| **`POST`** | `/api/Auth/refresh-token` | Público | Renueva un JWT expirado usando un Refresh Token activo. |
 
-#### 3. Obtener Perfil (`GET /api/Auth/profile`)
-* **Cabecera requerida:** `Authorization: Bearer <TU_JWT_TOKEN>`
-* **Respuesta Exitosa (`200 OK`):**
-```json
-{
-  "id": 3,
-  "username": "nombre_usuario",
-  "email": "usuario@ejemplo.com",
-  "nombreCompleto": "Nombre Completo del Usuario",
-  "role": "Cliente",
-  "fechaRegistro": "2026-06-30T05:30:00Z"
-}
-```
+#### Contratos JSON de Autenticación:
+
+* **Registro (`POST /api/Auth/register`):**
+  - **Request:**
+    ```json
+    {
+      "username": "espiritu_libre",
+      "email": "zen@corsync.com",
+      "password": "PasswordZen123!",
+      "nombreCompleto": "Carlos Zen"
+    }
+    ```
+  - **Response (201 Created):**
+    ```json
+    {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5c...",
+      "refreshToken": "dGhpcyBpcyBhIHJlZnJlc2gg...",
+      "expiration": "2026-07-02T05:00:00Z",
+      "user": {
+        "id": 3,
+        "username": "espiritu_libre",
+        "email": "zen@corsync.com",
+        "nombreCompleto": "Carlos Zen",
+        "nombreEspiritual": "",
+        "signoZodiacal": "",
+        "fotoUrl": null,
+        "role": "Cliente",
+        "fechaRegistro": "2026-07-01T21:00:00Z"
+      }
+    }
+    ```
+
+* **Inicio de Sesión (`POST /api/Auth/login`):**
+  - **Request:**
+    ```json
+    {
+      "username": "espiritu_libre",
+      "password": "PasswordZen123!"
+    }
+    ```
+  - **Response (200 OK):** Mismo objeto JSON `AuthResponse` devuelto por el registro.
+
+* **Cerrar Sesión (`POST /api/Auth/logout`):**
+  - **Cabecera:** `Authorization: Bearer <JWT_TOKEN>`
+  - **Request:**
+    ```json
+    {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5c...",
+      "refreshToken": "dGhpcyBpcyBhIHJlZnJlc2gg..."
+    }
+    ```
+  - **Response (200 OK):**
+    ```json
+    {
+      "message": "Sesión cerrada exitosamente."
+    }
+    ```
+
+* **Renovar Token (`POST /api/Auth/refresh-token`):**
+  - **Request:**
+    ```json
+    {
+      "token": "eyJhbGciOiJIUzI1NiIsInR5c...", // Token JWT expirado
+      "refreshToken": "dGhpcyBpcyBhIHJlZnJlc2gg..." // Refresh token activo
+    }
+    ```
+  - **Response (200 OK):** Devuelve un nuevo `AuthResponse` con tokens rotados.
+
+---
+
+### 2. Módulo: Usuario (`api/User`)
+
+Gestiona el perfil espiritual y las estadísticas acumuladas de meditación y telemetría del usuario.
+
+| Método | Endpoint | Autenticación | Descripción |
+| :--- | :--- | :---: | :--- |
+| **`GET`** | `/api/User/profile` | **JWT** | Obtiene el perfil completo del usuario. |
+| **`PUT`** | `/api/User/profile` | **JWT** | Actualiza nombre espiritual, signo del zodiaco y foto. |
+| **`GET`** | `/api/User/stats` | **JWT** | Retorna el BPM promedio, estrés, sesiones y rachas. |
+
+#### Contratos JSON de Usuario:
+
+* **Actualizar Perfil (`PUT /api/User/profile`):**
+  - **Request:**
+    ```json
+    {
+      "nombreCompleto": "Carlos Zen",
+      "nombreEspiritual": "Luz de Luna",
+      "signoZodiacal": "Piscis", // Aries, Tauro, Géminis, Cáncer, Leo, Virgo, Libra, Escorpio, Sagitario, Capricornio, Acuario, Piscis
+      "fotoUrl": "https://images.corsync.com/avatars/user3.png"
+    }
+    ```
+  - **Response (200 OK):** Devuelve el objeto `UserInfo` actualizado.
+
+* **Obtener Estadísticas (`GET /api/User/stats`):**
+  - **Response (200 OK):**
+    ```json
+    {
+      "bpmPromedio": 74.2,
+      "nivelEstresPromedio": 32.5,
+      "sesionesTotales": 12,
+      "auraDominante": "Verde",
+      "rachaActualDias": 5,
+      "ultimaSesion": "2026-07-01T20:30:00Z"
+    }
+    ```
+
+---
+
+### 3. Módulo: Historial de Lecturas (`api/Readings`)
+
+Permite guardar y consultar las sesiones de escaneo biométrico y clasificación de aura completadas.
+
+| Método | Endpoint | Autenticación | Descripción |
+| :--- | :--- | :---: | :--- |
+| **`GET`** | `/api/Readings` | **JWT** | Lista lecturas históricas (soporta `page` y `pageSize`). |
+| **`GET`** | `/api/Readings/{id}` | **JWT** | Detalle completo de una lectura específica. |
+| **`POST`** | `/api/Readings` | **JWT** | Guarda una nueva sesión tras realizar un escaneo en la app. |
+| **`GET`** | `/api/Readings/summary` | **JWT** | Resumen global de auras y su distribución. |
+
+#### Contratos JSON de Lecturas:
+
+* **Guardar Lectura (`POST /api/Readings`):**
+  - **Request:**
+    ```json
+    {
+      "dispositivoId": "ESP32_MAX30102_01",
+      "bpmPromedio": 68.4,
+      "bpmMaximo": 85.0,
+      "bpmMinimo": 60.0,
+      "gsrRawPromedio": 1240,
+      "gsrVoltajePromedio": 0.998,
+      "nivelEstres": 22.50,
+      "auraDominante": "Verde",
+      "notas": "Excelente sesión de respiración profunda",
+      "duracionSegundos": 300,
+      "fechaInicio": "2026-07-01T20:25:00Z",
+      "fechaFin": "2026-07-01T20:30:00Z"
+    }
+    ```
+  - **Response (201 Created):** Retorna el objeto guardado con su `id` asignado.
+
+* **Resumen Global (`GET /api/Readings/summary`):**
+  - **Response (200 OK):**
+    ```json
+    {
+      "bpmPromedioGlobal": 72.8,
+      "nivelEstresPromedio": 28.4,
+      "totalSesiones": 12,
+      "auraMasFrecuente": "Verde",
+      "distribucionAuras": {
+        "Verde": 7,
+        "Azul": 3,
+        "Amarilla": 2
+      }
+    }
+    ```
+
+---
+
+### 4. Módulo: Desafíos y Gamificación (`api/Challenges` y `api/Medals`)
+
+Listado y control de desafíos espirituales y medallas desbloqueadas por el usuario.
+
+| Método | Endpoint | Autenticación | Descripción |
+| :--- | :--- | :---: | :--- |
+| **`GET`** | `/api/Challenges` | **JWT** | Lista desafíos activos con el progreso del usuario. |
+| **`PUT`** | `/api/Challenges/{id}/progress` | **JWT** | Actualiza manualmente el progreso de un desafío. |
+| **`GET`** | `/api/Medals` | **JWT** | Obtiene las medallas que el usuario ha desbloqueado. |
+
+#### Contratos JSON de Gamificación:
+
+* **Lista de Desafíos (`GET /api/Challenges`):**
+  - **Response (200 OK):**
+    ```json
+    [
+      {
+        "id": 1,
+        "titulo": "Primera Lectura",
+        "descripcion": "Realiza tu primer escaneo de aura",
+        "icono": "🌟",
+        "tipo": "Sesiones",
+        "metaObjetivo": 1,
+        "unidadMedida": "sesiones",
+        "puntos": 10,
+        "progresoActual": 1,
+        "completado": true,
+        "porcentajeProgreso": 100.0,
+        "fechaCompletado": "2026-06-30T10:15:00Z"
+      },
+      {
+        "id": 4,
+        "titulo": "Semana Zen",
+        "descripcion": "Completa sesiones de escaneo durante 7 días seguidos",
+        "icono": "🧘",
+        "tipo": "Racha",
+        "metaObjetivo": 7,
+        "unidadMedida": "días",
+        "puntos": 100,
+        "progresoActual": 5,
+        "completado": false,
+        "porcentajeProgreso": 71.4,
+        "fechaCompletado": null
+      }
+    ]
+    ```
+
+* **Actualizar Progreso (`PUT /api/Challenges/{id}/progress`):**
+  - **Request:**
+    ```json
+    {
+      "progresoActual": 6
+    }
+    ```
+  - **Response (200 OK):** Retorna el objeto del desafío con el progreso actualizado.
+
+* **Listar Medallas Obtenidas (`GET /api/Medals`):**
+  - **Response (200 OK):**
+    ```json
+    [
+      {
+        "id": 1,
+        "nombre": "Primer Escaneo",
+        "descripcion": "Completaste tu primera lectura de aura",
+        "icono": "🏅",
+        "fechaObtenida": "2026-06-30T10:15:00Z"
+      }
+    ]
+    ```
 
 ---
 
 ### Almacenamiento Seguro del Token en la App Móvil
 
-Se recomienda almacenar el token de forma persistente y segura en el dispositivo móvil:
+Se recomienda almacenar el token JWT de forma persistente y segura en el dispositivo móvil:
 - **Flutter:** Usar el paquete `flutter_secure_storage`.
 - **React Native / Expo:** Usar `expo-secure-store` o `react-native-keychain`.
 
