@@ -7,6 +7,7 @@ using CORSYNC.Api.Services;
 using CORSYNC.Core.Interfaces;
 using CORSYNC.Infrastructure.Auth;
 using CORSYNC.Infrastructure.Database;
+using CORSYNC.Infrastructure.Gamification;
 using CORSYNC.Infrastructure.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,6 +40,7 @@ else
 // Add CORSYNC telemetry services
 builder.Services.AddSingleton<ITelemetryProcessor, TelemetryProcessor>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IGamificationService, GamificationService>();
 
 // Register Hosted Services (Workers)
 builder.Services.AddHostedService<TelemetryDbFlushWorker>();
@@ -114,6 +116,18 @@ using (var scope = app.Services.CreateScope())
             BEGIN
                 ALTER TABLE Usuarios ADD Activo BIT NOT NULL DEFAULT 1;
             END
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'NombreEspiritual')
+            BEGIN
+                ALTER TABLE Usuarios ADD NombreEspiritual NVARCHAR(100) NOT NULL DEFAULT '';
+            END
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'SignoZodiacal')
+            BEGIN
+                ALTER TABLE Usuarios ADD SignoZodiacal NVARCHAR(30) NOT NULL DEFAULT '';
+            END
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'FotoUrl')
+            BEGIN
+                ALTER TABLE Usuarios ADD FotoUrl NVARCHAR(500) NULL;
+            END
 
             IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Usuarios_Username' AND object_id = OBJECT_ID('Usuarios'))
             BEGIN
@@ -122,6 +136,20 @@ using (var scope = app.Services.CreateScope())
             IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Usuarios_Email' AND object_id = OBJECT_ID('Usuarios'))
             BEGIN
                 CREATE UNIQUE INDEX IX_Usuarios_Email ON Usuarios(Email);
+            END
+
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='RefreshTokens' AND xtype='U')
+            BEGIN
+                CREATE TABLE RefreshTokens (
+                    Id              INT IDENTITY(1,1) PRIMARY KEY,
+                    UsuarioId       INT NOT NULL FOREIGN KEY REFERENCES Usuarios(Id) ON DELETE CASCADE,
+                    Token           NVARCHAR(256) NOT NULL,
+                    FechaCreacion   DATETIME2 NOT NULL,
+                    FechaExpiracion DATETIME2 NOT NULL,
+                    Revocado        BIT NOT NULL DEFAULT 0,
+                    ReemplazadoPor  NVARCHAR(256) NULL
+                );
+                CREATE UNIQUE INDEX IX_RefreshTokens_Token ON RefreshTokens(Token);
             END
 
             UPDATE Usuarios 
