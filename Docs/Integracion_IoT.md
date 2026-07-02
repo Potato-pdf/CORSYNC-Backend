@@ -1,19 +1,79 @@
-# Guía de Integración para el Dispositivo IoT (Reemplazo de Broker MQTT a WebSockets/SignalR)
+# Guía de Integración para el Dispositivo IoT (WebSockets/SignalR)
 
-Esta guía detalla cómo configurar el microcontrolador (ej. **ESP32**) del prototipo IoT para comunicarse directamente con el Backend de CORSYNC usando WebSockets (SignalR) en reemplazo del broker MQTT.
+Esta guía detalla cómo configurar el microcontrolador (ej. **ESP32**) del prototipo IoT para comunicarse con el Backend de CORSYNC usando WebSockets (SignalR).
 
----
-
-## 0. Resumen de la Migración (Adiós MQTT Broker, Hola WebSockets)
-
-Anteriormente, el prototipo IoT publicaba datos en un Broker MQTT externo (ej. HiveMQ Cloud). Con esta actualización:
-* **Eliminado**: Ya no se requiere inicializar el cliente MQTT ni conectarse a HiveMQ Cloud en el firmware.
-* **Nuevo**: El ESP32 abrirá un WebSocket directo al Backend de CORSYNC (`/telemetryHub`) que actuará como el servidor de WebSockets central (Bridge).
-* **Flujo**: El ESP32 se conecta, se registra y espera a que el servidor le ordene enviar datos (`StartTelemetry`). Cuando recibe la orden, comienza a hacer push de los datos directo por el socket y se detiene cuando el servidor se lo pide (`StopTelemetry`).
+> **IMPORTANTE**: La comunicación es **exclusivamente por SignalR** (WebSockets). El endpoint HTTP POST fue eliminado. Todos los datos de telemetría se envían y reciben por el Hub `/telemetryHub`.
 
 ---
 
-## 1. El Reto de SignalR en IoT y Cómo Resolverlo
+## 0. Resumen del Flujo
+
+```
+ESP32 ─── SendTelemetry(lectura, aura:"") ──→ Backend
+                                                  │
+                                          ┌───────┴───────┐
+                                          │  Validate()   │
+                                          │  Smooth()     │
+                                          │  CalculateAura│
+                                          └───────┬───────┘
+                                                  │
+         ┌────────────────────────────────────────┤
+         │                                        │
+         ▼                                        ▼
+  ReceiveAura                              ReceiveTelemetry
+  {aura: "Verde"}                          (lectura completa)
+         │                                        │
+         ▼                                        ▼
+     ESP32                                   App Móvil
+  (cambia LED RGB)                    (muestra datos en tiempo real)
+```
+
+**Flujo en tiempo real (~5Hz)**:
+1. ESP32 envía lectura con `aura: ""` (string vacío)
+2. Backend valida, calcula `BPMPromedio` y `CalculateAura()` (Rojo/Naranja/Amarillo/Verde/Azul/Morado)
+3. Backend retorna `ReceiveAura` al ESP32 con el color calculado
+4. Backend envía `ReceiveTelemetry` a la App Móvil con la lectura completa
+5. Cada 5 segundos, el backend consolida las lecturas en buffer y las guarda en BD
+
+---
+
+## 1. Requisitos para Conectarse a SignalR
+
+### ¿El ESP32 necesita la App Móvil para conectarse?
+
+**No.** El ESP32 se conecta al backend **de forma completamente independiente**. La app móvil es opcional y solo añade control remoto (iniciar/detener medición) y visualización de datos. El ESP32 puede:
+
+- **Conectarse sin móvil**: El ESP32 inicia sesión, se autentica y puede empezar a enviar telemetría por su cuenta. El backend procesará los datos, calculará el aura y lo retornará al ESP32 aunque no haya ninguna app móvil conectada.
+- **Con móvil**: La app envía comandos `StartTelemetry`/`StopTelemetry` al servidor, que los reenvía al ESP32 para controlar remotamente las mediciones.
+
+### Requisitos técnicos del ESP32
+
+| Componente | Propósito | Librería sugerida |
+|------------|-----------|-------------------|
+| **WiFi** | Conexión a internet | `WiFi.h` |
+| **HTTP Client** | Negociación inicial de SignalR (GET/POST) | `HTTPClient.h` |
+| **WebSocket** | Conexión persistente en tiempo real | `WebSocketsClient.h` (Links2004) |
+| **JSON** | Serializar/deserializar mensajes | `ArduinoJson.h` |
+| **TLS/SSL** | Conexiones seguras WSS (producción) | `WiFiClientSecure.h` |
+
+### Diagrama de conexión independiente
+
+```
+ESP32
+  │── WiFi conectado
+  │── POST /telemetryHub/negotiate → obtiene connectionToken
+  │── WS /telemetryHub?id=token → handshake SignalR
+  │── RegisterDevice("ESP32_01")
+  │── [opcional] Auto-start: comienza a enviar SendTelemetry
+  │     └── ReceiveAura ← Backend (siempre responde)
+  │     └── ReceiveTelemetry → solo si hay móvil conectada
+  └── Si no hay móvil, el backend igual procesa, calcula aura,
+      persiste en BD, y retorna ReceiveAura al ESP32
+```
+
+---
+
+## 2. El Reto de SignalR en IoT y Cómo Resolverlo
 
 ASP.NET Core SignalR utiliza un protocolo sobre WebSockets que requiere dos pasos de handshake (negociación):
 1. **Negociación inicial (HTTP POST)** para obtener el `connectionToken`.
@@ -25,7 +85,7 @@ ASP.NET Core SignalR utiliza un protocolo sobre WebSockets que requiere dos paso
 
 ---
 
-## 2. Flujo del Protocolo SignalR (Formato Manual)
+## 3. Flujo del Protocolo SignalR (Formato Manual)
 
 Si decides implementar la comunicación usando WebSockets directos, debes seguir este flujo exacto:
 
@@ -67,7 +127,7 @@ El servidor responderá con un mensaje de confirmación vacío:
 
 ---
 
-## 3. Comandos e Invocación de Métodos (Formato JSON)
+## 4. Comandos e Invocación de Métodos (Formato JSON)
 
 Una vez completado el handshake, la comunicación se realiza mediante mensajes estructurados. Todos los mensajes enviados y recibidos deben terminar con el byte `0x1E`.
 
@@ -96,14 +156,23 @@ El ESP32 debe procesar en su bucle de lectura de WebSocket los siguientes comand
   *Acción*: Detener las lecturas físicas del sensor y apagar su LED para ahorrar energía.
 
 * **Comando de Aura Calculada (`ReceiveAura`)**:
-  Recibirás este JSON:
+  Recibirás este JSON **después de cada lectura que envíes**:
   ```json
-  {"type":1,"target":"ReceiveAura","arguments":[{"aura":"Verde"}]} 
+  {"type":1,"target":"ReceiveAura","arguments":[{"aura":"Verde"}]}
   ```
-  *Acción*: Leer el valor de `"aura"` (puede ser `"Rojo"`, `"Naranja"`, `"Amarillo"`, `"Verde"`, `"Azul"` o `"Morado"`) y utilizarlo para cambiar el color de un indicador LED RGB en el prototipo físico.
+  *Acción*: Leer el valor de `"aura"` y utilizarlo para cambiar el color de un indicador LED RGB en el prototipo físico. Los valores posibles son:
+  - `"Rojo"` → Alta activación (estrés/enfado/intensidad)
+  - `"Naranja"` → Activación moderada-alta (ansiedad/entusiasmo)
+  - `"Amarillo"` → Enfoque/concentración
+  - `"Verde"` → Estado neutro (calma/estabilidad)
+  - `"Azul"` → Relajación (paz/tranquilidad)
+  - `"Morado"` → Relajación profunda/meditación
 
 ### C. Enviar Datos de Telemetría (Client-to-Server)
 Cuando el sensor esté activo y generando lecturas, el ESP32 debe enviarlas invocando el método `SendTelemetry`.
+
+> **Nota**: El campo `aura` se envía como string vacío `""`. El backend calcula el aura basándose en `bpm` y `gsrVoltaje`, y lo retorna al ESP32 vía `ReceiveAura`.
+
 * **Mensaje a enviar (enviar a frecuencia de ~5Hz)**:
 ```json
 {
@@ -114,16 +183,51 @@ Cuando el sensor esté activo y generando lecturas, el ESP32 debe enviarlas invo
       "dispositivoId": "ESP32_MAX30102",
       "ir": 87432,
       "bpm": 72.5,
+      "bpmPromedio": 0,
       "gsrRaw": 1340,
-      "gsrVoltaje": 1.079
+      "gsrVoltaje": 1.079,
+      "aura": ""
     }
   ]
-} 
+}
 ```
+
+### D. Respuesta del Backend
+
+#### ReceiveAura (retornado al ESP32)
+El backend calcula el aura y lo retorna al ESP32 que envió la lectura:
+```json
+{"type":1,"target":"ReceiveAura","arguments":[{"aura":"Verde"}]}
+```
+
+#### ReceiveTelemetry (enviado a la App Móvil)
+El backend envía la lectura completa (con aura calculada) a la app móvil asociada al dispositivo:
+```json
+{
+  "dispositivoId": "ESP32_MAX30102",
+  "ir": 87432,
+  "bpm": 72.5,
+  "bpmPromedio": 73,
+  "gsrRaw": 1340,
+  "gsrVoltaje": 1.079,
+  "aura": "Verde",
+  "fechaHora": "2026-07-02T16:09:55.426Z"
+}
+```
+
+#### Colores del Aura
+| Aura | Condición | Significado |
+|------|-----------|-------------|
+| **Rojo** | bpm > 100 && gsrVoltaje > 2.0 | Alta activación (estrés/enfado) |
+| **Naranja** | bpm > 85 && gsrVoltaje > 1.5 | Activación moderada-alta (ansiedad) |
+| **Amarillo** | bpm > 75 && gsrVoltaje > 1.0 | Enfoque/concentración |
+| **Verde** | bpm >= 65 && gsrVoltaje >= 0.5 | Estado neutro (calma) |
+| **Azul** | bpm >= 55 && gsrVoltaje >= 0.2 | Relajación |
+| **Morado** | Default | Relajación profunda/meditación |
 
 ---
 
-## 4. Código de Ejemplo para ESP32 (Arduino IDE)
+## 5. Código de Ejemplo para ESP32 (Arduino IDE)
 
 Este ejemplo básico ilustra el handshake manual y la gestión de flujo utilizando la biblioteca `arduinoWebSockets` y `ArduinoJson`.
 
@@ -257,7 +361,7 @@ void loop() {
     int gsrRaw = 1300 + random(-50, 50);
     float gsrVoltaje = (gsrRaw * 3.3) / 4095.0; // Conversión ADC a voltaje (ej. ESP32 12-bit)
     
-    // Crear payload JSON para SignalR (sin 'aura' ni 'bpmPromedio', se calculan en el backend)
+    // Crear payload JSON para SignalR (aura vacía, el backend la calcula)
     JsonDocument doc;
     doc["type"] = 1;
     doc["target"] = "SendTelemetry";
@@ -267,8 +371,10 @@ void loop() {
     lectura["dispositivoId"] = deviceId;
     lectura["bpm"] = bpm;
     lectura["ir"] = irValue;
+    lectura["bpmPromedio"] = 0;
     lectura["gsrRaw"] = gsrRaw;
     lectura["gsrVoltaje"] = gsrVoltaje;
+    lectura["aura"] = "";
     
     String output;
     serializeJson(doc, output);
