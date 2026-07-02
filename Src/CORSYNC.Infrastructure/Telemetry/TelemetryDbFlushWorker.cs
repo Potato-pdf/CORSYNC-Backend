@@ -14,15 +14,25 @@ namespace CORSYNC.Infrastructure.Telemetry
         private readonly ILogger<TelemetryDbFlushWorker> _logger;
         private readonly ITelemetryProcessor _processor;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly int _intervalMs;
 
         public TelemetryDbFlushWorker(
             ILogger<TelemetryDbFlushWorker> logger,
             ITelemetryProcessor processor,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory) : this(logger, processor, scopeFactory, 5000)
+        {
+        }
+
+        public TelemetryDbFlushWorker(
+            ILogger<TelemetryDbFlushWorker> logger,
+            ITelemetryProcessor processor,
+            IServiceScopeFactory scopeFactory,
+            int intervalMs)
         {
             _logger = logger;
             _processor = processor;
             _scopeFactory = scopeFactory;
+            _intervalMs = intervalMs;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -33,8 +43,8 @@ namespace CORSYNC.Infrastructure.Telemetry
             {
                 try
                 {
-                    // Flush every 5 seconds
-                    await Task.Delay(5000, stoppingToken);
+                    // Flush periodically
+                    await Task.Delay(_intervalMs, stoppingToken);
 
                     var consolidated = _processor.FlushBuffer();
                     if (consolidated != null)
