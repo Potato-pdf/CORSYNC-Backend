@@ -132,11 +132,12 @@ namespace CORSYNC.Tests
         }
 
         [Theory]
-        [InlineData(110.0, 2.5, "Roja")]      // BPM > 100, GSR > 2.0
+        [InlineData(110.0, 2.5, "Rojo")]      // BPM > 100, GSR > 2.0
         [InlineData(90.0, 1.8, "Naranja")]    // BPM > 85, GSR > 1.5
-        [InlineData(80.0, 1.2, "Amarilla")]   // BPM > 75, GSR > 1.0
+        [InlineData(80.0, 1.2, "Amarillo")]   // BPM > 75, GSR > 1.0
         [InlineData(70.0, 0.8, "Verde")]      // BPM >= 65, GSR >= 0.5
-        [InlineData(60.0, 0.3, "Azul")]       // BPM < 65 or GSR < 0.5
+        [InlineData(60.0, 0.3, "Azul")]       // BPM >= 55, GSR >= 0.2
+        [InlineData(50.0, 0.1, "Morado")]     // De lo contrario, Morado
         public void Smooth_ShouldCalculateCorrectAuraColor(double bpm, double gsrVoltaje, string expectedAura)
         {
             // Arrange

@@ -81,6 +81,9 @@ namespace CORSYNC.Api.Hubs
                 // Retransmitir la lectura procesada en tiempo real solo al grupo móvil asociado
                 string mobileGroup = $"mobile_{lectura.DispositivoId}";
                 await Clients.Group(mobileGroup).SendAsync("ReceiveTelemetry", smoothed);
+
+                // Enviar de vuelta al prototipo IoT (Caller) el color del aura calculado en un JSON
+                await Clients.Caller.SendAsync("ReceiveAura", new { aura = smoothed.Aura });
             }
             else
             {

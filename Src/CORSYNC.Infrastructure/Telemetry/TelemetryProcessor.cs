@@ -101,33 +101,36 @@ namespace CORSYNC.Infrastructure.Telemetry
 
         private string CalculateAura(decimal bpm, decimal gsrVoltaje)
         {
-            // Alta activación física y emocional (Estrés/Enfado/Intensidad)
+            // Rojo: Alta activación física y emocional (Estrés/Enfado/Intensidad)
             if (bpm > 100m && gsrVoltaje > 2.0m)
             {
-                return "Roja";
+                return "Rojo";
             }
-            // Activación física o emocional moderada-alta (Ansiedad/Entusiasmo/Esfuerzo)
+            // Naranja: Activación física o emocional moderada-alta (Ansiedad/Entusiasmo/Esfuerzo)
             else if (bpm > 85m && gsrVoltaje > 1.5m)
             {
                 return "Naranja";
             }
-            // Enfoque, concentración o nerviosismo leve (Alerta/Concentración)
+            // Amarillo: Enfoque, concentración o nerviosismo leve (Alerta/Concentración)
             else if (bpm > 75m && gsrVoltaje > 1.0m)
             {
-                return "Amarilla";
+                return "Amarillo";
             }
-            // Estado neutro, tranquilidad normal (Calma/Estabilidad)
+            // Verde: Estado neutro, tranquilidad normal (Calma/Estabilidad)
             else if (bpm >= 65m && gsrVoltaje >= 0.5m)
             {
                 return "Verde";
             }
-            // Estado de relajación profunda (Paz/Meditación)
-            else if (bpm < 65m || gsrVoltaje < 0.5m)
+            // Azul: Estado de relajación (Paz/Tranquilidad)
+            else if (bpm >= 55m && gsrVoltaje >= 0.2m)
             {
                 return "Azul";
             }
-
-            return "Verde"; // Default
+            // Morado: Relajación profunda / meditación (Zen)
+            else
+            {
+                return "Morado";
+            }
         }
     }
 }

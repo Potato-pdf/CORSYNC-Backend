@@ -430,7 +430,7 @@ El JSON que recibirá la aplicación móvil representa el objeto de telemetría 
   "bpmPromedio": 71,
   "gsrRaw": 1340,
   "gsrVoltaje": 1.079,
-  "aura": "Roja",
+  "aura": "Rojo",
   "fechaHora": "2026-06-29T22:51:35Z"
 }
 ```
@@ -438,7 +438,7 @@ El JSON que recibirá la aplicación móvil representa el objeto de telemetría 
 ### Descripción de Campos Adicionales (GSR & Aura):
 * **`gsrRaw`** (int): Valor analógico crudo de conductividad de la piel (Galvanic Skin Response).
 * **`gsrVoltaje`** (decimal): Voltaje equivalente del sensor (de 0.0V a 3.3V) según la resistencia cutánea.
-* **`aura`** (string): Clasificación calculada para representar el nivel de estrés o estado emocional (ej: `"Roja"`, `"Azul"`, `"Verde"`).
+* **`aura`** (string): Clasificación calculada para representar el nivel de estrés o estado emocional (los colores posibles son: `"Rojo"`, `"Naranja"`, `"Amarillo"`, `"Verde"`, `"Azul"`, `"Morado"`).
 
 > [!TIP]
 > **Optimización visual**: Utiliza el valor de `ir` (Infrarrojo) para dibujar la onda del fotopletismograma (la curva del pulso cardíaco) y el valor de `bpmPromedio` como el número estable a mostrar en pantalla. El valor de `gsrVoltaje` y `aura` te permitirán pintar indicadores de estrés y cambiar dinámicamente colores de interfaz inspirados en el color del aura.

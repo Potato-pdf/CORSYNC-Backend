@@ -84,16 +84,23 @@ El ESP32 debe procesar en su bucle de lectura de WebSocket los siguientes comand
 * **Comando de Inicio (`StartTelemetry`)**:
   Recibirás este JSON:
   ```json
-  {"type":1,"target":"StartTelemetry","arguments":[]}
+  {"type":1,"target":"StartTelemetry","arguments":[]} 
   ```
   *Acción*: Activar el sensor `MAX30102` y comenzar el bucle de envío de datos.
 
 * **Comando de Parada (`StopTelemetry`)**:
   Recibirás este JSON:
   ```json
-  {"type":1,"target":"StopTelemetry","arguments":[]}
+  {"type":1,"target":"StopTelemetry","arguments":[]} 
   ```
   *Acción*: Detener las lecturas físicas del sensor y apagar su LED para ahorrar energía.
+
+* **Comando de Aura Calculada (`ReceiveAura`)**:
+  Recibirás este JSON:
+  ```json
+  {"type":1,"target":"ReceiveAura","arguments":[{"aura":"Verde"}]} 
+  ```
+  *Acción*: Leer el valor de `"aura"` (puede ser `"Rojo"`, `"Naranja"`, `"Amarillo"`, `"Verde"`, `"Azul"` o `"Morado"`) y utilizarlo para cambiar el color de un indicador LED RGB en el prototipo físico.
 
 ### C. Enviar Datos de Telemetría (Client-to-Server)
 Cuando el sensor esté activo y generando lecturas, el ESP32 debe enviarlas invocando el método `SendTelemetry`.
@@ -201,6 +208,10 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
           } else if (target == "StopTelemetry") {
             Serial.println("[WS] Servidor solicitó detener medición!");
             isMeasuring = false;
+          } else if (target == "ReceiveAura") {
+            String aura = doc["arguments"][0]["aura"].as<String>();
+            Serial.println("[WS] Aura calculada recibida: " + aura);
+            // TODO: Cambiar color de LED RGB físico según el aura
           }
         }
       }

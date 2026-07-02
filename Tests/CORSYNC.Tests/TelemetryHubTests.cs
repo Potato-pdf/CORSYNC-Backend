@@ -17,6 +17,7 @@ namespace CORSYNC.Tests
         private readonly Mock<ITelemetryProcessor> _mockProcessor;
         private readonly Mock<IHubCallerClients> _mockClients;
         private readonly Mock<IClientProxy> _mockClientProxy;
+        private readonly Mock<ISingleClientProxy> _mockSingleClientProxy;
         private readonly Mock<IGroupManager> _mockGroups;
         private readonly Mock<HubCallerContext> _mockContext;
         private readonly TelemetryHub _hub;
@@ -27,11 +28,13 @@ namespace CORSYNC.Tests
             _mockProcessor = new Mock<ITelemetryProcessor>();
             _mockClients = new Mock<IHubCallerClients>();
             _mockClientProxy = new Mock<IClientProxy>();
+            _mockSingleClientProxy = new Mock<ISingleClientProxy>();
             _mockGroups = new Mock<IGroupManager>();
             _mockContext = new Mock<HubCallerContext>();
 
             // Setup Clients.Group to return our mockClientProxy
             _mockClients.Setup(c => c.Group(It.IsAny<string>())).Returns(_mockClientProxy.Object);
+            _mockClients.Setup(c => c.Caller).Returns(_mockSingleClientProxy.Object);
 
             // Setup HubCallerContext ConnectionId
             _mockContext.Setup(c => c.ConnectionId).Returns("conn-id-123");
@@ -202,7 +205,7 @@ namespace CORSYNC.Tests
         {
             // Arrange
             var reading = new LecturaCorazon { DispositivoId = "ESP32_123", BPM = 75m, IR = 100000 };
-            var smoothedReading = new LecturaCorazon { DispositivoId = "ESP32_123", BPM = 75m, IR = 100000, BPMPromedio = 75 };
+            var smoothedReading = new LecturaCorazon { DispositivoId = "ESP32_123", BPM = 75m, IR = 100000, BPMPromedio = 75, Aura = "Verde" };
             string expectedMobileGroup = $"mobile_{reading.DispositivoId}";
 
             _mockProcessor.Setup(p => p.Validate(reading)).Returns(true);
@@ -218,6 +221,9 @@ namespace CORSYNC.Tests
             _mockClients.Verify(c => c.Group(expectedMobileGroup), Times.Once);
             _mockClientProxy.Verify(
                 p => p.SendCoreAsync("ReceiveTelemetry", It.Is<object?[]>(args => args.Length == 1 && args[0] == smoothedReading), It.IsAny<CancellationToken>()),
+                Times.Once);
+            _mockSingleClientProxy.Verify(
+                p => p.SendCoreAsync("ReceiveAura", It.Is<object?[]>(args => args.Length == 1), It.IsAny<CancellationToken>()),
                 Times.Once);
         }
 
