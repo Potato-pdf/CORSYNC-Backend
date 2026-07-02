@@ -114,5 +114,46 @@ namespace CORSYNC.Tests
             Assert.Contains(jwtToken.Claims, c => c.Type == ClaimTypes.Email && c.Value == "test@corsync.com");
             Assert.Contains(jwtToken.Claims, c => c.Type == ClaimTypes.Role && c.Value == "Cliente");
         }
+
+        [Fact]
+        public void GenerateRefreshToken_ReturnsValidToken()
+        {
+            // Act
+            var refreshToken = _service.GenerateRefreshToken(42);
+
+            // Assert
+            Assert.NotNull(refreshToken);
+            Assert.Equal(42, refreshToken.UsuarioId);
+            Assert.NotEmpty(refreshToken.Token);
+            Assert.False(refreshToken.Revocado);
+            Assert.True(refreshToken.FechaExpiracion > DateTime.UtcNow);
+        }
+
+        [Fact]
+        public void GetPrincipalFromExpiredToken_ValidSignature_ReturnsPrincipal()
+        {
+            // Arrange
+            var user = new Usuario { Id = 42, Username = "test", Email = "a@b.com", Role = "Cliente" };
+            var token = _service.GenerateJwtToken(user);
+
+            // Act
+            var principal = _service.GetPrincipalFromExpiredToken(token);
+
+            // Assert
+            Assert.NotNull(principal);
+            var idClaim = principal.FindFirst(ClaimTypes.NameIdentifier);
+            Assert.NotNull(idClaim);
+            Assert.Equal("42", idClaim.Value);
+        }
+
+        [Fact]
+        public void GetPrincipalFromExpiredToken_InvalidSignature_ReturnsNull()
+        {
+            // Act
+            var principal = _service.GetPrincipalFromExpiredToken("invalid.jwt.token");
+
+            // Assert
+            Assert.Null(principal);
+        }
     }
 }
