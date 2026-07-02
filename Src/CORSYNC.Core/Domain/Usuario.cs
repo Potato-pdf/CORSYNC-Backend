@@ -27,6 +27,15 @@ namespace CORSYNC.Core.Domain
         [MaxLength(20)]
         public string Role { get; set; } = "Cliente"; // "Admin", "Cliente", "Soporte"
 
+        [MaxLength(100)]
+        public string NombreEspiritual { get; set; } = string.Empty;
+
+        [MaxLength(30)]
+        public string SignoZodiacal { get; set; } = string.Empty;
+
+        [MaxLength(500)]
+        public string? FotoUrl { get; set; }
+
         public DateTime FechaRegistro { get; set; } = DateTime.UtcNow;
 
         public bool Activo { get; set; } = true;
