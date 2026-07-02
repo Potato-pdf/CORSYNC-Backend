@@ -4,6 +4,31 @@ Esta guía detalla cómo configurar el microcontrolador (ej. **ESP32**) del prot
 
 > **IMPORTANTE**: La comunicación es **exclusivamente por SignalR** (WebSockets). El endpoint HTTP POST fue eliminado. Todos los datos de telemetría se envían y reciben por el Hub `/telemetryHub`.
 
+### Referencia rápida de endpoints para el ESP32
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│            ENDPOINTS DEL BACKEND (CORSYNC API)                    │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  1. Negociación (HTTP POST):                                     │
+│     POST http://<host>/telemetryHub/negotiate?negotiateVersion=1  │
+│     → Obtiene el connectionToken                                  │
+│                                                                   │
+│  2. Conexión WebSocket:                                          │
+│     ws://<host>/telemetryHub?id={connectionToken}                 │
+│     → Canal bidireccional en tiempo real                          │
+│                                                                   │
+│  3. Métodos del Hub (por WebSocket):                              │
+│     Enviar → SendTelemetry(lectura)      (datos del sensor)      │
+│     Enviar → RegisterDevice(deviceId)    (registro inicial)       │
+│     Recibir → ReceiveAura({aura})        (cálculo del backend)   │
+│     Recibir → StartTelemetry             (orden de la móvil)     │
+│     Recibir → StopTelemetry              (orden de la móvil)     │
+│                                                                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## 0. Resumen del Flujo
