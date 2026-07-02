@@ -72,5 +72,55 @@ namespace CORSYNC.Infrastructure.Auth
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        public RefreshToken GenerateRefreshToken(int usuarioId)
+        {
+            var randomNumber = new byte[64];
+            using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+
+            return new RefreshToken
+            {
+                UsuarioId = usuarioId,
+                Token = Convert.ToBase64String(randomNumber),
+                FechaExpiracion = DateTime.UtcNow.AddDays(7),
+                FechaCreacion = DateTime.UtcNow,
+                Revocado = false
+            };
+        }
+
+        public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+        {
+            var secretKey = _configuration["TokenConfiguration:SecretKey"] ?? "LLAVE_SECRETA_SUPER_LARGA_Y_COMPLEJA_PARA_JWT_2026";
+            var issuer = _configuration["TokenConfiguration:Issuer"] ?? "CORSYNCServer";
+            var audience = _configuration["TokenConfiguration:Audience"] ?? "CORSYNCClients";
+
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = issuer,
+                ValidAudience = audience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+                ValidateLifetime = false // Permitir tokens expirados
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            try
+            {
+                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
+                if (securityToken is not JwtSecurityToken jwtSecurityToken ||
+                    !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    return null;
+                }
+                return principal;
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }
