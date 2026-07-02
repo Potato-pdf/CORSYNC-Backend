@@ -53,6 +53,9 @@ namespace CORSYNC.Api.Controllers
                 Email = request.Email.Trim(),
                 PasswordHash = _authService.HashPassword(request.Password),
                 NombreCompleto = request.NombreCompleto.Trim(),
+                NombreEspiritual = string.Empty,
+                SignoZodiacal = string.Empty,
+                FotoUrl = null,
                 Role = "Cliente", // Forzar rol Cliente por seguridad
                 FechaRegistro = DateTime.UtcNow,
                 Activo = true
@@ -61,15 +64,19 @@ namespace CORSYNC.Api.Controllers
             _context.Usuarios.Add(user);
             await _context.SaveChangesAsync();
 
-            // Generar el token
+            // Generar tokens
             var token = _authService.GenerateJwtToken(user);
+            var refreshToken = _authService.GenerateRefreshToken(user.Id);
             
-            // Suponer expiración de 2 horas como en la configuración por defecto
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+
             var expiration = DateTime.UtcNow.AddHours(2);
 
             return CreatedAtAction(nameof(GetProfile), new {}, new AuthResponse
             {
                 Token = token,
+                RefreshToken = refreshToken.Token,
                 Expiration = expiration,
                 User = new UserInfo
                 {
@@ -77,6 +84,9 @@ namespace CORSYNC.Api.Controllers
                     Username = user.Username,
                     Email = user.Email,
                     NombreCompleto = user.NombreCompleto,
+                    NombreEspiritual = user.NombreEspiritual,
+                    SignoZodiacal = user.SignoZodiacal,
+                    FotoUrl = user.FotoUrl,
                     Role = user.Role,
                     FechaRegistro = user.FechaRegistro
                 }
@@ -102,13 +112,19 @@ namespace CORSYNC.Api.Controllers
                 return Unauthorized("Usuario o contraseña incorrectos.");
             }
 
-            // Generar token
+            // Generar tokens
             var token = _authService.GenerateJwtToken(user);
+            var refreshToken = _authService.GenerateRefreshToken(user.Id);
+
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+
             var expiration = DateTime.UtcNow.AddHours(2);
 
             return Ok(new AuthResponse
             {
                 Token = token,
+                RefreshToken = refreshToken.Token,
                 Expiration = expiration,
                 User = new UserInfo
                 {
@@ -116,6 +132,89 @@ namespace CORSYNC.Api.Controllers
                     Username = user.Username,
                     Email = user.Email,
                     NombreCompleto = user.NombreCompleto,
+                    NombreEspiritual = user.NombreEspiritual,
+                    SignoZodiacal = user.SignoZodiacal,
+                    FotoUrl = user.FotoUrl,
+                    Role = user.Role,
+                    FechaRegistro = user.FechaRegistro
+                }
+            });
+        }
+
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request)
+        {
+            var storedToken = await _context.RefreshTokens
+                .FirstOrDefaultAsync(t => t.Token == request.RefreshToken);
+
+            if (storedToken == null || storedToken.Revocado)
+            {
+                return Unauthorized("Token de refresco inválido o ya revocado.");
+            }
+
+            storedToken.Revocado = true;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Sesión cerrada exitosamente." });
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+        {
+            var principal = _authService.GetPrincipalFromExpiredToken(request.Token);
+            if (principal == null)
+            {
+                return Unauthorized("Token de acceso inválido.");
+            }
+
+            var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("Identificador de usuario inválido en el token de acceso.");
+            }
+
+            var storedRefreshToken = await _context.RefreshTokens
+                .FirstOrDefaultAsync(t => t.Token == request.RefreshToken);
+
+            if (storedRefreshToken == null || !storedRefreshToken.EstaActivo || storedRefreshToken.UsuarioId != userId)
+            {
+                return Unauthorized("Token de refresco inválido, expirado o no corresponde al usuario.");
+            }
+
+            var user = await _context.Usuarios.FindAsync(userId);
+            if (user == null || !user.Activo)
+            {
+                return Unauthorized("Usuario inactivo o no encontrado.");
+            }
+
+            // Generar nuevos tokens
+            var newJwtToken = _authService.GenerateJwtToken(user);
+            var newRefreshToken = _authService.GenerateRefreshToken(user.Id);
+
+            // Roto el token viejo
+            storedRefreshToken.Revocado = true;
+            storedRefreshToken.ReemplazadoPor = newRefreshToken.Token;
+
+            _context.RefreshTokens.Add(newRefreshToken);
+            await _context.SaveChangesAsync();
+
+            var expiration = DateTime.UtcNow.AddHours(2);
+
+            return Ok(new AuthResponse
+            {
+                Token = newJwtToken,
+                RefreshToken = newRefreshToken.Token,
+                Expiration = expiration,
+                User = new UserInfo
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    Email = user.Email,
+                    NombreCompleto = user.NombreCompleto,
+                    NombreEspiritual = user.NombreEspiritual,
+                    SignoZodiacal = user.SignoZodiacal,
+                    FotoUrl = user.FotoUrl,
                     Role = user.Role,
                     FechaRegistro = user.FechaRegistro
                 }
@@ -150,6 +249,9 @@ namespace CORSYNC.Api.Controllers
                 Username = user.Username,
                 Email = user.Email,
                 NombreCompleto = user.NombreCompleto,
+                NombreEspiritual = user.NombreEspiritual,
+                SignoZodiacal = user.SignoZodiacal,
+                FotoUrl = user.FotoUrl,
                 Role = user.Role,
                 FechaRegistro = user.FechaRegistro
             });
