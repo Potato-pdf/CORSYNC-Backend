@@ -36,8 +36,18 @@ namespace CORSYNC.Core.DTOs
     public class AuthResponse
     {
         public string Token { get; set; } = string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
         public DateTime Expiration { get; set; }
         public UserInfo User { get; set; } = null!;
+    }
+
+    public class RefreshTokenRequest
+    {
+        [Required(ErrorMessage = "El token de acceso es requerido.")]
+        public string Token { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El token de refresco es requerido.")]
+        public string RefreshToken { get; set; } = string.Empty;
     }
 
     public class UserInfo
@@ -48,5 +58,8 @@ namespace CORSYNC.Core.DTOs
         public string NombreCompleto { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public DateTime FechaRegistro { get; set; }
+        public string NombreEspiritual { get; set; } = string.Empty;
+        public string SignoZodiacal { get; set; } = string.Empty;
+        public string? FotoUrl { get; set; }
     }
 }
