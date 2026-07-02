@@ -355,5 +355,148 @@ namespace CORSYNC.Tests
             var notFoundResult = Assert.IsType<NotFoundObjectResult>(actionResult);
             Assert.Contains("Usuario no encontrado o inactivo.", notFoundResult.Value?.ToString() ?? "");
         }
+
+        [Fact]
+        public async Task Register_ReturnsRefreshToken()
+        {
+            // Arrange
+            var (context, authService) = GetDeps();
+            var controller = new AuthController(context, authService);
+            var request = new RegisterRequest
+            {
+                Username = "nuevouser2",
+                Email = "nuevo2@corsync.com",
+                Password = "SuperPassword123!",
+                NombreCompleto = "Nuevo Usuario 2"
+            };
+
+            // Act
+            var actionResult = await controller.Register(request);
+
+            // Assert
+            var createdResult = Assert.IsType<CreatedAtActionResult>(actionResult);
+            var authResponse = Assert.IsType<AuthResponse>(createdResult.Value);
+            
+            Assert.NotNull(authResponse.RefreshToken);
+            Assert.NotEmpty(authResponse.RefreshToken);
+            
+            // Verify in DB
+            var dbToken = await context.RefreshTokens.FirstOrDefaultAsync(t => t.Token == authResponse.RefreshToken);
+            Assert.NotNull(dbToken);
+            Assert.Equal(authResponse.User.Id, dbToken.UsuarioId);
+        }
+
+        [Fact]
+        public async Task Login_ReturnsRefreshToken()
+        {
+            // Arrange
+            var (context, authService) = GetDeps();
+            string hashedPassword = authService.HashPassword("miPassword123");
+            var user = new Usuario
+            {
+                Username = "juan2",
+                Email = "juan2@corsync.com",
+                PasswordHash = hashedPassword,
+                Role = "Cliente",
+                Activo = true
+            };
+            context.Usuarios.Add(user);
+            await context.SaveChangesAsync();
+
+            var controller = new AuthController(context, authService);
+            var request = new LoginRequest
+            {
+                Username = "juan2",
+                Password = "miPassword123"
+            };
+
+            // Act
+            var actionResult = await controller.Login(request);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(actionResult);
+            var authResponse = Assert.IsType<AuthResponse>(okResult.Value);
+            
+            Assert.NotNull(authResponse.RefreshToken);
+            Assert.NotEmpty(authResponse.RefreshToken);
+            
+            var dbToken = await context.RefreshTokens.FirstOrDefaultAsync(t => t.Token == authResponse.RefreshToken);
+            Assert.NotNull(dbToken);
+        }
+
+        [Fact]
+        public async Task Logout_ValidToken_RevokesIt()
+        {
+            // Arrange
+            var (context, authService) = GetDeps();
+            var user = new Usuario { Username = "user", Email = "a@b.com", PasswordHash = "hash", Activo = true };
+            context.Usuarios.Add(user);
+            await context.SaveChangesAsync();
+
+            var rt = authService.GenerateRefreshToken(user.Id);
+            context.RefreshTokens.Add(rt);
+            await context.SaveChangesAsync();
+
+            var controller = new AuthController(context, authService);
+            var request = new RefreshTokenRequest
+            {
+                Token = "jwt_access_token",
+                RefreshToken = rt.Token
+            };
+
+            // Act
+            var result = await controller.Logout(request);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            
+            // Check in DB
+            var dbToken = await context.RefreshTokens.FindAsync(rt.Id);
+            Assert.NotNull(dbToken);
+            Assert.True(dbToken.Revocado);
+        }
+
+        [Fact]
+        public async Task RefreshToken_ValidRequest_RotatesTokens()
+        {
+            // Arrange
+            var (context, authService) = GetDeps();
+            var user = new Usuario { Id = 42, Username = "user", Email = "a@b.com", PasswordHash = "hash", Activo = true };
+            context.Usuarios.Add(user);
+            await context.SaveChangesAsync();
+
+            var jwtToken = authService.GenerateJwtToken(user);
+            var rt = authService.GenerateRefreshToken(user.Id);
+            context.RefreshTokens.Add(rt);
+            await context.SaveChangesAsync();
+
+            var controller = new AuthController(context, authService);
+            var request = new RefreshTokenRequest
+            {
+                Token = jwtToken,
+                RefreshToken = rt.Token
+            };
+
+            // Act
+            var result = await controller.RefreshToken(request);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var authResponse = Assert.IsType<AuthResponse>(okResult.Value);
+            
+            Assert.NotNull(authResponse.Token);
+            Assert.NotNull(authResponse.RefreshToken);
+            Assert.NotEqual(rt.Token, authResponse.RefreshToken);
+
+            // Verify old token is revoked
+            var oldToken = await context.RefreshTokens.FindAsync(rt.Id);
+            Assert.NotNull(oldToken);
+            Assert.True(oldToken.Revocado);
+            Assert.Equal(authResponse.RefreshToken, oldToken.ReemplazadoPor);
+
+            // Verify new token exists in DB
+            var newTokenExists = await context.RefreshTokens.AnyAsync(t => t.Token == authResponse.RefreshToken && !t.Revocado);
+            Assert.True(newTokenExists);
+        }
     }
 }
