@@ -30,22 +30,6 @@ namespace CORSYNC.Api.Controllers
             return Ok(readings);
         }
 
-        // Manually push a heart reading (for testing/integration validations)
-        [HttpPost("corazon")]
-        public async Task<IActionResult> RegistrarLecturaCorazon([FromBody] LecturaCorazon lectura)
-        {
-            if (lectura == null)
-            {
-                return BadRequest("Payload inválido.");
-            }
-
-            lectura.FechaHora = DateTime.UtcNow;
-            _context.LecturasCorazon.Add(lectura);
-            await _context.SaveChangesAsync();
-
-            return Ok(lectura);
-        }
-
         // Skins sensor (GSR) endpoint - marked as pending
         [HttpGet("piel")]
         public IActionResult GetPielTelemetry()

@@ -40,27 +40,6 @@ namespace CORSYNC.Tests
         }
 
         [Fact]
-        public async Task RegistrarLecturaCorazon_SavesToDatabase()
-        {
-            // Arrange
-            using var context = GetDbContext();
-            var controller = new TelemetryController(context);
-            var reading = new LecturaCorazon { DispositivoId = "Manual_1", BPM = 75m, IR = 98000 };
-
-            // Act
-            var actionResult = await controller.RegistrarLecturaCorazon(reading);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(actionResult);
-            var saved = Assert.IsType<LecturaCorazon>(okResult.Value);
-            Assert.Equal("Manual_1", saved.DispositivoId);
-
-            // Verify db has 1 entry
-            var count = await context.LecturasCorazon.CountAsync();
-            Assert.Equal(1, count);
-        }
-
-        [Fact]
         public void GetPielTelemetry_Returns501NotImplementedWithPendingNotice()
         {
             // Arrange
