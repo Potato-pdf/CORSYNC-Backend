@@ -6,8 +6,10 @@ using CORSYNC.Api.Hubs;
 using CORSYNC.Api.Services;
 using CORSYNC.Core.Interfaces;
 using CORSYNC.Infrastructure.Auth;
+using CORSYNC.Infrastructure.Costing;
 using CORSYNC.Infrastructure.Database;
 using CORSYNC.Infrastructure.Gamification;
+using CORSYNC.Infrastructure.Notifications;
 using CORSYNC.Infrastructure.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -42,11 +44,49 @@ builder.Services.AddSingleton<ITelemetryProcessor, TelemetryProcessor>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGamificationService, GamificationService>();
 
+// Servicios de la plataforma comercial
+builder.Services.AddScoped<ICosteoService, CosteoService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
 // Register Hosted Services (Workers)
 builder.Services.AddHostedService<TelemetryDbFlushWorker>();
 
+// CORS: el sitio web comercial en Angular consume esta API desde otro origen.
+// Los origenes permitidos se leen de configuracion (Cors:Origins) y se completan
+// con los de desarrollo local para poder trabajar contra el backend desplegado.
+const string PoliticaCors = "CorsyncWeb";
+var origenesConfigurados = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? Array.Empty<string>();
+var origenesPermitidos = origenesConfigurados
+    .Concat(new[]
+    {
+        "http://localhost:4200",
+        "https://localhost:4200",
+        "http://127.0.0.1:4200",
+        "http://localhost:8100"
+    })
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(PoliticaCors, policy => policy
+        .WithOrigins(origenesPermitidos)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        // Necesario para que SignalR pueda negociar el WebSocket desde el navegador.
+        .AllowCredentials());
+});
+
 // Add API Controllers and SignalR WebSockets
-builder.Services.AddControllers();
+// El fixup de relaciones de EF Core enlaza navegaciones inversas (por ejemplo
+// DocumentoProducto.Producto) aunque no se hayan incluido explicitamente,
+// lo que puede formar ciclos como Producto -> Receta -> Producto -> Receta.
+// Se ignoran esos ciclos al serializar en lugar de fallar con 500.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddSignalR();
 
 // JWT Authentication Configuration
@@ -96,6 +136,10 @@ using (var scope = app.Services.CreateScope())
 
     var telemetryDb = scope.ServiceProvider.GetRequiredService<TelemetryDbContext>();
     telemetryDb.Database.EnsureCreated();
+
+    var bootstrapLogger = scope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("DatabaseBootstrapper");
 
     if (adminDb.Database.IsRelational())
     {
@@ -156,11 +200,15 @@ using (var scope = app.Services.CreateScope())
             SET PasswordHash = '$2a$11$UZ8mNYO7Ss0T41oYzfqHt.ILCFlrmVxEUZr6/i1cdBZ1qAxBhrBj.'
             WHERE Username = 'admin' AND PasswordHash = 'admin123';
 
-            UPDATE Usuarios 
+            UPDATE Usuarios
             SET PasswordHash = '$2a$11$fOK8ihp4BxXTrxjzGqw8Gu6Zdv1ZFFmA4XMX5KD26UjdsyLaovOfO'
             WHERE Username = 'cliente' AND PasswordHash = 'cliente123';
         ");
     }
+
+// Esquema y catálogo base de la plataforma comercial (productos, proveedores,
+// compras, cotizaciones, FAQ y bitacora de correos).
+DatabaseBootstrapper.ActualizarEsquemaComercial(adminDb, bootstrapLogger);
 
     if (telemetryDb.Database.IsRelational())
     {
@@ -205,6 +253,10 @@ app.UseSwagger();
 //}
 
 app.UseRouting();
+
+// CORS debe resolverse antes de la autenticacion para que el preflight OPTIONS
+// no sea rechazado con 401 en los endpoints protegidos.
+app.UseCors(PoliticaCors);
 
 app.UseAuthentication();
 app.UseAuthorization();
