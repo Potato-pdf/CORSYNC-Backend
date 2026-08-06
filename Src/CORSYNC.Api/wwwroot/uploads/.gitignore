@@ -1,0 +1,4 @@
+# Las imágenes que sube el administrador no se versionan: son datos, no código.
+# Se conserva la estructura de carpetas para que la app arranque limpia.
+*
+!.gitignore

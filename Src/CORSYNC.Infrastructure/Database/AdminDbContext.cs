@@ -33,6 +33,9 @@ namespace CORSYNC.Infrastructure.Database
         public DbSet<MensajeContacto> MensajesContacto { get; set; } = null!;
         public DbSet<PreguntaFrecuente> PreguntasFrecuentes { get; set; } = null!;
         public DbSet<CorreoEnviado> CorreosEnviados { get; set; } = null!;
+        public DbSet<ImagenProducto> ImagenesProductos { get; set; } = null!;
+        public DbSet<CaracteristicaProducto> CaracteristicasProductos { get; set; } = null!;
+        public DbSet<EspecificacionProducto> EspecificacionesProductos { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -160,6 +163,30 @@ namespace CORSYNC.Infrastructure.Database
                       .OnDelete(DeleteBehavior.SetNull);
             });
 
+            modelBuilder.Entity<ImagenProducto>(entity =>
+            {
+                entity.HasOne(i => i.Producto)
+                      .WithMany()
+                      .HasForeignKey(i => i.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CaracteristicaProducto>(entity =>
+            {
+                entity.HasOne(c => c.Producto)
+                      .WithMany()
+                      .HasForeignKey(c => c.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<EspecificacionProducto>(entity =>
+            {
+                entity.HasOne(e => e.Producto)
+                      .WithMany()
+                      .HasForeignKey(e => e.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
             SeedComercial(modelBuilder);
 
             modelBuilder.Entity<Usuario>(entity =>
@@ -274,6 +301,36 @@ namespace CORSYNC.Infrastructure.Database
                 new RecetaProducto { Id = 8, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 8, CantidadRequerida = 1, MermaPorcentaje = 0 },
                 new RecetaProducto { Id = 9, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 9, CantidadRequerida = 1, MermaPorcentaje = 0 },
                 new RecetaProducto { Id = 10, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 10, CantidadRequerida = 1, MermaPorcentaje = 0 }
+            );
+
+            // Caracteristicas destacadas de la ficha comercial.
+            modelBuilder.Entity<CaracteristicaProducto>().HasData(
+                new CaracteristicaProducto { Id = 1, ProductoId = 1, Orden = 1, Icono = "activity", Texto = "Sensor de respuesta galvánica de la piel (GSR)" },
+                new CaracteristicaProducto { Id = 2, ProductoId = 1, Orden = 2, Icono = "heart-pulse", Texto = "Sensor óptico de ritmo cardíaco (PPG)" },
+                new CaracteristicaProducto { Id = 3, ProductoId = 1, Orden = 3, Icono = "circle-half", Texto = "Generación de aura en tiempo real" },
+                new CaracteristicaProducto { Id = 4, ProductoId = 1, Orden = 4, Icono = "phone", Texto = "Aplicación móvil para iOS y Android" },
+                new CaracteristicaProducto { Id = 5, ProductoId = 1, Orden = 5, Icono = "bluetooth", Texto = "Bluetooth Low Energy 5.2" },
+                new CaracteristicaProducto { Id = 6, ProductoId = 1, Orden = 6, Icono = "battery-full", Texto = "Hasta 7 días de autonomía" },
+                new CaracteristicaProducto { Id = 7, ProductoId = 1, Orden = 7, Icono = "droplet", Texto = "Resistencia al agua IP68" },
+                new CaracteristicaProducto { Id = 8, ProductoId = 1, Orden = 8, Icono = "share", Texto = "Compartir el aura en vivo" }
+            );
+
+            // Ficha tecnica, agrupada por bloque.
+            modelBuilder.Entity<EspecificacionProducto>().HasData(
+                new EspecificacionProducto { Id = 1, ProductoId = 1, Orden = 1, Grupo = "Físicas", Campo = "Dimensiones", Valor = "40 × 34 × 9,5 mm" },
+                new EspecificacionProducto { Id = 2, ProductoId = 1, Orden = 2, Grupo = "Físicas", Campo = "Peso", Valor = "31 g con correa" },
+                new EspecificacionProducto { Id = 3, ProductoId = 1, Orden = 3, Grupo = "Físicas", Campo = "Carcasa", Valor = "Aluminio anodizado 6061" },
+                new EspecificacionProducto { Id = 4, ProductoId = 1, Orden = 4, Grupo = "Físicas", Campo = "Correa", Valor = "Silicona médica hipoalergénica" },
+                new EspecificacionProducto { Id = 5, ProductoId = 1, Orden = 5, Grupo = "Físicas", Campo = "Resistencia", Valor = "IP68 · 1,5 m durante 30 min" },
+                new EspecificacionProducto { Id = 6, ProductoId = 1, Orden = 6, Grupo = "Sensores", Campo = "Conductancia", Valor = "GSR con electrodos de acero 316L" },
+                new EspecificacionProducto { Id = 7, ProductoId = 1, Orden = 7, Grupo = "Sensores", Campo = "Pulso", Valor = "MAX30102, fotopletismografía" },
+                new EspecificacionProducto { Id = 8, ProductoId = 1, Orden = 8, Grupo = "Sensores", Campo = "Frecuencia de muestreo", Valor = "25 Hz" },
+                new EspecificacionProducto { Id = 9, ProductoId = 1, Orden = 9, Grupo = "Sensores", Campo = "Rango de pulso", Valor = "30 – 220 BPM" },
+                new EspecificacionProducto { Id = 10, ProductoId = 1, Orden = 10, Grupo = "Sistema", Campo = "Procesador", Valor = "ESP32-C3 con BLE 5.2 y Wi-Fi" },
+                new EspecificacionProducto { Id = 11, ProductoId = 1, Orden = 11, Grupo = "Sistema", Campo = "Batería", Valor = "LiPo 300 mAh" },
+                new EspecificacionProducto { Id = 12, ProductoId = 1, Orden = 12, Grupo = "Sistema", Campo = "Autonomía", Valor = "Hasta 7 días de uso continuo" },
+                new EspecificacionProducto { Id = 13, ProductoId = 1, Orden = 13, Grupo = "Sistema", Campo = "Carga", Valor = "Base magnética inalámbrica · 1,5 h" },
+                new EspecificacionProducto { Id = 14, ProductoId = 1, Orden = 14, Grupo = "Sistema", Campo = "Compatibilidad", Valor = "iOS 14+ · Android 11+" }
             );
 
             modelBuilder.Entity<DocumentoProducto>().HasData(

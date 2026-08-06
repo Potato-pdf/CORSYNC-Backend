@@ -283,6 +283,44 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'CorreosEnviados' AND xtype
         Estado        NVARCHAR(20)   NOT NULL DEFAULT 'Simulado',
         FechaEnvio    DATETIME2      NOT NULL DEFAULT GETUTCDATE()
     );
+
+-- ============================================================
+-- 9. Galeria, caracteristicas y especificaciones del producto
+-- ============================================================
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'ImagenesProductos' AND xtype = 'U')
+    CREATE TABLE ImagenesProductos (
+        Id             INT IDENTITY(1,1) PRIMARY KEY,
+        ProductoId     INT           NOT NULL,
+        Url            NVARCHAR(500) NOT NULL,
+        Titulo         NVARCHAR(200) NOT NULL DEFAULT '',
+        Descripcion    NVARCHAR(400) NOT NULL DEFAULT '',
+        Orden          INT           NOT NULL DEFAULT 0,
+        NombreArchivo  NVARCHAR(260) NOT NULL DEFAULT '',
+        TamanoBytes    BIGINT        NOT NULL DEFAULT 0,
+        FechaSubida    DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
+        CONSTRAINT FK_ImagenesProductos_Productos FOREIGN KEY (ProductoId) REFERENCES Productos(Id) ON DELETE CASCADE
+    );
+
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'CaracteristicasProductos' AND xtype = 'U')
+    CREATE TABLE CaracteristicasProductos (
+        Id          INT IDENTITY(1,1) PRIMARY KEY,
+        ProductoId  INT           NOT NULL,
+        Texto       NVARCHAR(200) NOT NULL,
+        Icono       NVARCHAR(60)  NOT NULL DEFAULT 'check-lg',
+        Orden       INT           NOT NULL DEFAULT 0,
+        CONSTRAINT FK_CaracteristicasProductos_Productos FOREIGN KEY (ProductoId) REFERENCES Productos(Id) ON DELETE CASCADE
+    );
+
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'EspecificacionesProductos' AND xtype = 'U')
+    CREATE TABLE EspecificacionesProductos (
+        Id          INT IDENTITY(1,1) PRIMARY KEY,
+        ProductoId  INT           NOT NULL,
+        Grupo       NVARCHAR(80)  NOT NULL,
+        Campo       NVARCHAR(120) NOT NULL,
+        Valor       NVARCHAR(250) NOT NULL,
+        Orden       INT           NOT NULL DEFAULT 0,
+        CONSTRAINT FK_EspecificacionesProductos_Productos FOREIGN KEY (ProductoId) REFERENCES Productos(Id) ON DELETE CASCADE
+    );
 ";
 
         // El prefijo N antes de cada literal es obligatorio: sin el, SQL Server
@@ -399,6 +437,36 @@ IF NOT EXISTS (SELECT 1 FROM Comentarios WHERE Aprobado = 1)
     (N'Diego M.', 'diego.m@example.com', N'Desde que uso CORSYNC entiendo mejor mis picos de estrés. Ver la lectura galvánica junto al pulso cambia cómo interpreto mi día.', 5, @productoId, 1, NULL, NULL, DATEADD(day, -21, GETUTCDATE())),
     (N'Valentina P.', 'valentina.p@example.com', N'Buen producto, aunque la batería me dura cinco días y no siete. Espero que lo mejoren con una actualización.', 3, @productoId, 1, N'Gracias por el reporte Valentina. El equipo está optimizando el consumo del sensor GSR. - ThinkUp', DATEADD(day, -12, GETUTCDATE()), DATEADD(day, -14, GETUTCDATE())),
     (N'Andrea L.', 'andrea.l@example.com', N'Compramos 25 pulseras para el programa de bienestar de la empresa. El proceso de cotización fue claro y el descuento por volumen se aplicó sin problema.', 5, @productoId, 1, NULL, NULL, DATEADD(day, -6, GETUTCDATE()));
+
+-- Caracteristicas destacadas de la ficha comercial.
+IF NOT EXISTS (SELECT 1 FROM CaracteristicasProductos WHERE ProductoId = @productoId)
+    INSERT INTO CaracteristicasProductos (ProductoId, Texto, Icono, Orden) VALUES
+    (@productoId, N'Sensor de respuesta galvánica de la piel (GSR)', N'activity', 1),
+    (@productoId, N'Sensor óptico de ritmo cardíaco (PPG)', N'heart-pulse', 2),
+    (@productoId, N'Generación de aura en tiempo real', N'circle-half', 3),
+    (@productoId, N'Aplicación móvil para iOS y Android', N'phone', 4),
+    (@productoId, N'Bluetooth Low Energy 5.2', N'bluetooth', 5),
+    (@productoId, N'Hasta 7 días de autonomía', N'battery-full', 6),
+    (@productoId, N'Resistencia al agua IP68', N'droplet', 7),
+    (@productoId, N'Compartir el aura en vivo', N'share', 8);
+
+-- Ficha tecnica agrupada por bloque.
+IF NOT EXISTS (SELECT 1 FROM EspecificacionesProductos WHERE ProductoId = @productoId)
+    INSERT INTO EspecificacionesProductos (ProductoId, Grupo, Campo, Valor, Orden) VALUES
+    (@productoId, N'Físicas', N'Dimensiones', N'40 × 34 × 9,5 mm', 1),
+    (@productoId, N'Físicas', N'Peso', N'31 g con correa', 2),
+    (@productoId, N'Físicas', N'Carcasa', N'Aluminio anodizado 6061', 3),
+    (@productoId, N'Físicas', N'Correa', N'Silicona médica hipoalergénica', 4),
+    (@productoId, N'Físicas', N'Resistencia', N'IP68 · 1,5 m durante 30 min', 5),
+    (@productoId, N'Sensores', N'Conductancia', N'GSR con electrodos de acero 316L', 6),
+    (@productoId, N'Sensores', N'Pulso', N'MAX30102, fotopletismografía', 7),
+    (@productoId, N'Sensores', N'Frecuencia de muestreo', N'25 Hz', 8),
+    (@productoId, N'Sensores', N'Rango de pulso', N'30 – 220 BPM', 9),
+    (@productoId, N'Sistema', N'Procesador', N'ESP32-C3 con BLE 5.2 y Wi-Fi', 10),
+    (@productoId, N'Sistema', N'Batería', N'LiPo 300 mAh', 11),
+    (@productoId, N'Sistema', N'Autonomía', N'Hasta 7 días de uso continuo', 12),
+    (@productoId, N'Sistema', N'Carga', N'Base magnética inalámbrica · 1,5 h', 13),
+    (@productoId, N'Sistema', N'Compatibilidad', N'iOS 14+ · Android 11+', 14);
 
 -- Compra de demostracion para el cliente de prueba.
 DECLARE @clienteId INT = (SELECT TOP 1 Id FROM Usuarios WHERE Username = 'cliente');

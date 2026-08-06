@@ -367,4 +367,49 @@ namespace CORSYNC.Core.DTOs
         public decimal CostoUnitarioProducto { get; set; }
         public decimal PrecioListaProducto { get; set; }
     }
+
+    // ---------------------------------------------------------------------
+    // Galeria, caracteristicas y especificaciones del producto
+    // ---------------------------------------------------------------------
+
+    public class ActualizarImagenRequest
+    {
+        [MaxLength(200)]
+        public string? Titulo { get; set; }
+
+        [MaxLength(400)]
+        public string? Descripcion { get; set; }
+
+        public int? Orden { get; set; }
+    }
+
+    public class CaracteristicaRequest
+    {
+        [Required(ErrorMessage = "El texto de la característica es requerido.")]
+        [MaxLength(200)]
+        public string Texto { get; set; } = string.Empty;
+
+        /// <summary>Icono de Bootstrap Icons sin el prefijo "bi-".</summary>
+        [MaxLength(60)]
+        public string? Icono { get; set; }
+
+        public int? Orden { get; set; }
+    }
+
+    public class EspecificacionRequest
+    {
+        [Required(ErrorMessage = "El grupo es requerido.")]
+        [MaxLength(80)]
+        public string Grupo { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El campo es requerido.")]
+        [MaxLength(120)]
+        public string Campo { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El valor es requerido.")]
+        [MaxLength(250)]
+        public string Valor { get; set; } = string.Empty;
+
+        public int? Orden { get; set; }
+    }
 }
