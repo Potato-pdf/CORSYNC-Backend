@@ -24,6 +24,19 @@ namespace CORSYNC.Infrastructure.Database
         public DbSet<Medalla> Medallas { get; set; } = null!;
         public DbSet<MedallaUsuario> MedallasUsuarios { get; set; } = null!;
 
+        // --- Plataforma comercial ---
+        public DbSet<Producto> Productos { get; set; } = null!;
+        public DbSet<CompraProveedor> ComprasProveedores { get; set; } = null!;
+        public DbSet<DetalleCompraProveedor> DetallesCompraProveedor { get; set; } = null!;
+        public DbSet<CompraCliente> ComprasClientes { get; set; } = null!;
+        public DbSet<DocumentoProducto> DocumentosProductos { get; set; } = null!;
+        public DbSet<MensajeContacto> MensajesContacto { get; set; } = null!;
+        public DbSet<PreguntaFrecuente> PreguntasFrecuentes { get; set; } = null!;
+        public DbSet<CorreoEnviado> CorreosEnviados { get; set; } = null!;
+        public DbSet<ImagenProducto> ImagenesProductos { get; set; } = null!;
+        public DbSet<CaracteristicaProducto> CaracteristicasProductos { get; set; } = null!;
+        public DbSet<EspecificacionProducto> EspecificacionesProductos { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -80,19 +93,101 @@ namespace CORSYNC.Infrastructure.Database
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Seed initial data for costing (vidrio, marcos, etc.)
-            modelBuilder.Entity<MateriaPrima>().HasData(
-                new MateriaPrima { Id = 1, Nombre = "Vidrio de dos vias (cm2)", CostoUnidad = 0.05m, UnidadMedida = "cm2", Stock = 100000 },
-                new MateriaPrima { Id = 2, Nombre = "Marco de Madera Rustico (m)", CostoUnidad = 15.00m, UnidadMedida = "m", Stock = 500 },
-                new MateriaPrima { Id = 3, Nombre = "Tira LED RGB (m)", CostoUnidad = 4.50m, UnidadMedida = "m", Stock = 1000 },
-                new MateriaPrima { Id = 4, Nombre = "Sensor MAX30102", CostoUnidad = 8.00m, UnidadMedida = "unidad", Stock = 200 },
-                new MateriaPrima { Id = 5, Nombre = "Placa ESP32", CostoUnidad = 12.00m, UnidadMedida = "unidad", Stock = 150 }
-            );
+            // --- Relaciones de la plataforma comercial ---
 
-            modelBuilder.Entity<RecetaProducto>().HasData(
-                new RecetaProducto { Id = 1, NombreProducto = "Espejo CORSYNC Standard", MateriaPrimaId = 4, CantidadRequerida = 1 }, // 1 sensor MAX30102
-                new RecetaProducto { Id = 2, NombreProducto = "Espejo CORSYNC Standard", MateriaPrimaId = 5, CantidadRequerida = 1 }  // 1 ESP32
-            );
+            modelBuilder.Entity<MateriaPrima>(entity =>
+            {
+                entity.HasOne(mp => mp.Proveedor)
+                      .WithMany()
+                      .HasForeignKey(mp => mp.ProveedorId)
+                      .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<RecetaProducto>(entity =>
+            {
+                entity.HasOne(r => r.Producto)
+                      .WithMany(p => p.Receta)
+                      .HasForeignKey(r => r.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(r => r.MateriaPrima)
+                      .WithMany()
+                      .HasForeignKey(r => r.MateriaPrimaId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<CompraProveedor>(entity =>
+            {
+                entity.HasOne(c => c.Proveedor)
+                      .WithMany()
+                      .HasForeignKey(c => c.ProveedorId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<DetalleCompraProveedor>(entity =>
+            {
+                entity.HasOne(d => d.CompraProveedor)
+                      .WithMany(c => c.Detalles)
+                      .HasForeignKey(d => d.CompraProveedorId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(d => d.MateriaPrima)
+                      .WithMany()
+                      .HasForeignKey(d => d.MateriaPrimaId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<CompraCliente>(entity =>
+            {
+                entity.HasOne(c => c.Usuario)
+                      .WithMany()
+                      .HasForeignKey(c => c.UsuarioId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(c => c.Producto)
+                      .WithMany()
+                      .HasForeignKey(c => c.ProductoId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<DocumentoProducto>(entity =>
+            {
+                entity.HasOne(d => d.Producto)
+                      .WithMany()
+                      .HasForeignKey(d => d.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Comentario>(entity =>
+            {
+                entity.HasOne(c => c.Producto)
+                      .WithMany()
+                      .HasForeignKey(c => c.ProductoId)
+                      .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<ImagenProducto>(entity =>
+            {
+                entity.HasOne(i => i.Producto)
+                      .WithMany()
+                      .HasForeignKey(i => i.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CaracteristicaProducto>(entity =>
+            {
+                entity.HasOne(c => c.Producto)
+                      .WithMany()
+                      .HasForeignKey(c => c.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<EspecificacionProducto>(entity =>
+            {
+                entity.HasOne(e => e.Producto)
+                      .WithMany()
+                      .HasForeignKey(e => e.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            SeedComercial(modelBuilder);
 
             modelBuilder.Entity<Usuario>(entity =>
             {
@@ -101,23 +196,23 @@ namespace CORSYNC.Infrastructure.Database
             });
 
             modelBuilder.Entity<Usuario>().HasData(
-                new Usuario 
-                { 
-                    Id = 1, 
-                    Username = "admin", 
-                    Email = "admin@corsync.com",
-                    PasswordHash = "$2a$11$UZ8mNYO7Ss0T41oYzfqHt.ILCFlrmVxEUZr6/i1cdBZ1qAxBhrBj.", 
-                    NombreCompleto = "Administrador CORSYNC",
+                new Usuario
+                {
+                    Id = 1,
+                    Username = "admin",
+                    Email = "admin@thinkup.com",
+                    PasswordHash = "$2a$11$UZ8mNYO7Ss0T41oYzfqHt.ILCFlrmVxEUZr6/i1cdBZ1qAxBhrBj.",
+                    NombreCompleto = "Administrador ThinkUp",
                     Role = "Admin",
                     FechaRegistro = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                     Activo = true
                 },
-                new Usuario 
-                { 
-                    Id = 2, 
-                    Username = "cliente", 
-                    Email = "cliente@corsync.com",
-                    PasswordHash = "$2a$11$fOK8ihp4BxXTrxjzGqw8Gu6Zdv1ZFFmA4XMX5KD26UjdsyLaovOfO", 
+                new Usuario
+                {
+                    Id = 2,
+                    Username = "cliente",
+                    Email = "cliente@thinkup.com",
+                    PasswordHash = "$2a$11$fOK8ihp4BxXTrxjzGqw8Gu6Zdv1ZFFmA4XMX5KD26UjdsyLaovOfO",
                     NombreCompleto = "Cliente Demostración",
                     Role = "Cliente",
                     FechaRegistro = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -147,8 +242,6 @@ namespace CORSYNC.Infrastructure.Database
                 new Medalla { Id = 6, Nombre = "Completista", Descripcion = "Completaste 5 desafíos espirituales", Icono = "🏆", Condicion = "DesafiosCompletados", ValorCondicion = 5 }
             );
         }
-<<<<<<< Updated upstream
-=======
 
         /// <summary>
         /// Catalogo base de la plataforma comercial: el unico producto de ThinkUp es la
@@ -287,6 +380,5 @@ namespace CORSYNC.Infrastructure.Database
                 new PreguntaFrecuente { Id = 8, Categoria = "Ventas", Orden = 8, Activo = true, Pregunta = "¿Ofrecen descuentos por volumen?", Respuesta = "Sí. Aplicamos descuentos progresivos sobre el subtotal: 10% a partir de 10 unidades, 15% a partir de 50 y 20% a partir de 100. Además existen precios preferentes por tipo de licencia Corporativa y Enterprise. Puedes calcular tu precio exacto en el formulario de cotización." }
             );
         }
->>>>>>> Stashed changes
     }
 }
