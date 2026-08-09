@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CORSYNC · Simulador IoT</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #171a23; --line: #262b38;
+    --fg: #e7e9ee; --muted: #8b91a3; --ok: #2ecc71; --err: #e74c3c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row span:first-child { color: var(--muted); }
+  .row span:last-child { font-variant-numeric: tabular-nums; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .auras { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  button {
+    background: #202533; color: var(--fg); border: 1px solid var(--line);
+    border-radius: 7px; padding: 9px 10px; cursor: pointer; font: inherit; font-size: 13px;
+  }
+  button:hover { background: #262c3d; border-color: #3b4256; }
+  button.on { outline: 2px solid currentColor; }
+  .wide { grid-column: 1 / -1; }
+  .aura-btn { font-weight: 600; }
+  .big { font-size: 30px; font-weight: 700; letter-spacing: -.02em; }
+  pre {
+    margin: 0; max-height: 260px; overflow: auto; font-size: 12px;
+    color: var(--muted); font-family: ui-monospace, Consolas, monospace;
+  }
+  .lvl-ok { color: var(--ok); } .lvl-error { color: var(--err); }
+  .bar { display: flex; gap: 8px; margin-bottom: 10px; }
+  .bar button { flex: 1; }
+</style>
+</head>
+<body>
+
+<h1>CORSYNC · Simulador del dispositivo IoT</h1>
+<div class="sub" id="target"></div>
+
+<div class="grid">
+
+  <div class="card">
+    <h2>Conexión</h2>
+    <div class="row"><span>Hub</span><span id="hub">—</span></div>
+    <div class="row"><span>Dispositivo</span><span id="dev">—</span></div>
+    <div class="row"><span>Estado</span><span id="conn">—</span></div>
+    <div class="row"><span>Midiendo</span><span id="meas">—</span></div>
+    <div class="row"><span>Lecturas enviadas</span><span id="sent">0</span></div>
+    <div style="margin-top:12px" class="bar">
+      <button onclick="post('/api/measure',{on:true})">▶ Forzar medición</button>
+      <button onclick="post('/api/measure',{on:false})">■ Detener</button>
+    </div>
+    <button style="width:100%" onclick="post('/api/reconnect',{})">↻ Reconectar al hub</button>
+  </div>
+
+  <div class="card">
+    <h2>Última lectura enviada</h2>
+    <div class="row"><span>BPM</span><span id="bpm">—</span></div>
+    <div class="row"><span>GSR (V)</span><span id="gsrv">—</span></div>
+    <div class="row"><span>GSR raw</span><span id="gsrr">—</span></div>
+    <div class="row"><span>IR</span><span id="ir">—</span></div>
+    <div style="margin-top:14px">
+      <div style="color:var(--muted);font-size:12px">Aura que devolvió el backend</div>
+      <div class="big" id="aura">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Escenario</h2>
+    <div class="auras" id="auras"></div>
+    <div class="bar" style="margin-top:8px">
+      <button onclick="post('/api/scenario',{scenario:'ciclo'})" id="sc-ciclo">↻ Ciclo</button>
+      <button onclick="post('/api/scenario',{scenario:'deriva'})" id="sc-deriva">∿ Deriva</button>
+    </div>
+    <div style="color:var(--muted);font-size:12px" id="scdesc"></div>
+  </div>
+
+  <div class="card wide">
+    <h2>Registro</h2>
+    <pre id="log"></pre>
+  </div>
+
+</div>
+
+<script>
+const AURAS = {
+  Rojo:'#e74c3c', Naranja:'#e67e22', Amarillo:'#f1c40f',
+  Verde:'#2ecc71', Azul:'#5dade2', Morado:'#9b59b6'
+};
+
+const aurasEl = document.getElementById('auras');
+for (const [name, color] of Object.entries(AURAS)) {
+  const b = document.createElement('button');
+  b.className = 'aura-btn';
+  b.id = 'sc-' + name;
+  b.textContent = name;
+  b.style.color = color;
+  b.onclick = () => post('/api/scenario', { scenario: name });
+  aurasEl.appendChild(b);
+}
+
+async function post(url, body) {
+  await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  refresh();
+}
+
+const txt = (id, v) => document.getElementById(id).textContent = v;
+
+async function refresh() {
+  let s;
+  try { s = await (await fetch('/api/state')).json(); }
+  catch { txt('conn', 'simulador caído'); return; }
+
+  document.getElementById('target').textContent =
+    `Emite a ${s.rateHz} Hz hacia ${s.hubUrl}`;
+  txt('hub', new URL(s.hubUrl).host);
+  txt('dev', s.deviceId);
+  txt('sent', s.sent);
+
+  const ok = s.connection === 'conectado';
+  document.getElementById('conn').innerHTML =
+    `<span class="dot" style="background:${ok ? 'var(--ok)' : 'var(--err)'}"></span>${s.connection}`;
+  document.getElementById('meas').innerHTML = s.measuring
+    ? `<span class="dot" style="background:var(--ok)"></span>sí · ${s.measuringSource}`
+    : `<span class="dot" style="background:#555"></span>no`;
+
+  const r = s.lastReading;
+  txt('bpm',  r ? r.bpm : '—');
+  txt('gsrv', r ? r.gsrVoltaje.toFixed(3) : '—');
+  txt('gsrr', r ? r.gsrRaw : '—');
+  txt('ir',   r ? r.ir : '—');
+
+  const auraEl = document.getElementById('aura');
+  auraEl.textContent = s.lastAura || '—';
+  auraEl.style.color = AURAS[s.lastAura] || 'var(--muted)';
+
+  for (const el of document.querySelectorAll('[id^="sc-"]')) {
+    el.classList.toggle('on', el.id === 'sc-' + s.scenario);
+  }
+  const def = s.scenarios[s.scenario];
+  txt('scdesc', def ? `${def.desc} · ~${def.bpm} bpm · ~${def.gsr} V`
+    : s.scenario === 'ciclo' ? 'Rota por las seis auras, 6 s cada una.'
+    : 'Paseo lento que atraviesa varias auras — útil para probar el aura dominante.');
+
+  document.getElementById('log').innerHTML = s.log.map(l =>
+    `<span class="lvl-${l.level}">${l.t.slice(11,19)}  ${l.msg}</span>`).join('\n');
+}
+
+refresh();
+setInterval(refresh, 700);
+</script>
+</body>
+</html>
