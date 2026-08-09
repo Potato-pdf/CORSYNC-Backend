@@ -6,8 +6,11 @@ using CORSYNC.Api.Hubs;
 using CORSYNC.Api.Services;
 using CORSYNC.Core.Interfaces;
 using CORSYNC.Infrastructure.Auth;
+using CORSYNC.Infrastructure.Costing;
 using CORSYNC.Infrastructure.Database;
 using CORSYNC.Infrastructure.Gamification;
+using CORSYNC.Infrastructure.Media;
+using CORSYNC.Infrastructure.Notifications;
 using CORSYNC.Infrastructure.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -42,11 +45,55 @@ builder.Services.AddSingleton<ITelemetryProcessor, TelemetryProcessor>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGamificationService, GamificationService>();
 
+// Servicios de la plataforma comercial
+builder.Services.AddScoped<ICosteoService, CosteoService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+// Las imagenes de producto se guardan bajo wwwroot y se sirven como archivos
+// estaticos, de modo que el frontend las consume por URL directa.
+builder.Services.AddSingleton<IAlmacenImagenes>(sp => new AlmacenImagenesLocal(
+    builder.Environment.WebRootPath ?? Path.Combine(builder.Environment.ContentRootPath, "wwwroot"),
+    sp.GetRequiredService<ILogger<AlmacenImagenesLocal>>()));
+
 // Register Hosted Services (Workers)
 builder.Services.AddHostedService<TelemetryDbFlushWorker>();
 
+// CORS: el sitio web comercial en Angular consume esta API desde otro origen.
+// Los origenes permitidos se leen de configuracion (Cors:Origins) y se completan
+// con los de desarrollo local para poder trabajar contra el backend desplegado.
+const string PoliticaCors = "CorsyncWeb";
+var origenesConfigurados = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? Array.Empty<string>();
+var origenesPermitidos = origenesConfigurados
+    .Concat(new[]
+    {
+        "http://localhost:4200",
+        "https://localhost:4200",
+        "http://127.0.0.1:4200",
+        "http://localhost:8100"
+    })
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(PoliticaCors, policy => policy
+        .WithOrigins(origenesPermitidos)
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        // Necesario para que SignalR pueda negociar el WebSocket desde el navegador.
+        .AllowCredentials());
+});
+
 // Add API Controllers and SignalR WebSockets
-builder.Services.AddControllers();
+// El fixup de relaciones de EF Core enlaza navegaciones inversas (por ejemplo
+// DocumentoProducto.Producto) aunque no se hayan incluido explicitamente,
+// lo que puede formar ciclos como Producto -> Receta -> Producto -> Receta.
+// Se ignoran esos ciclos al serializar en lugar de fallar con 500.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddSignalR();
 
 // JWT Authentication Configuration
@@ -89,122 +136,150 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // Ensure database seed/schema creation on startup
-using (var scope = app.Services.CreateScope())
+try
 {
-    var adminDb = scope.ServiceProvider.GetRequiredService<AdminDbContext>();
-    adminDb.Database.EnsureCreated();
-
-    var telemetryDb = scope.ServiceProvider.GetRequiredService<TelemetryDbContext>();
-    telemetryDb.Database.EnsureCreated();
-
-    if (adminDb.Database.IsRelational())
+    using (var scope = app.Services.CreateScope())
     {
-        adminDb.Database.ExecuteSqlRaw(@"
-            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'Email')
-            BEGIN
-                ALTER TABLE Usuarios ADD Email NVARCHAR(100) NOT NULL DEFAULT 'temp@corsync.com';
-            END
-            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'NombreCompleto')
-            BEGIN
-                ALTER TABLE Usuarios ADD NombreCompleto NVARCHAR(100) NOT NULL DEFAULT '';
-            END
-            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'FechaRegistro')
-            BEGIN
-                ALTER TABLE Usuarios ADD FechaRegistro DATETIME2 NOT NULL DEFAULT GETUTCDATE();
-            END
-            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'Activo')
-            BEGIN
-                ALTER TABLE Usuarios ADD Activo BIT NOT NULL DEFAULT 1;
-            END
-            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'NombreEspiritual')
-            BEGIN
-                ALTER TABLE Usuarios ADD NombreEspiritual NVARCHAR(100) NOT NULL DEFAULT '';
-            END
-            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'SignoZodiacal')
-            BEGIN
-                ALTER TABLE Usuarios ADD SignoZodiacal NVARCHAR(30) NOT NULL DEFAULT '';
-            END
-            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'FotoUrl')
-            BEGIN
-                ALTER TABLE Usuarios ADD FotoUrl NVARCHAR(500) NULL;
-            END
+        var adminDb = scope.ServiceProvider.GetRequiredService<AdminDbContext>();
+        adminDb.Database.EnsureCreated();
 
-            IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Usuarios_Username' AND object_id = OBJECT_ID('Usuarios'))
-            BEGIN
-                CREATE UNIQUE INDEX IX_Usuarios_Username ON Usuarios(Username);
-            END
-            IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Usuarios_Email' AND object_id = OBJECT_ID('Usuarios'))
-            BEGIN
-                CREATE UNIQUE INDEX IX_Usuarios_Email ON Usuarios(Email);
-            END
+        var telemetryDb = scope.ServiceProvider.GetRequiredService<TelemetryDbContext>();
+        telemetryDb.Database.EnsureCreated();
 
-            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='RefreshTokens' AND xtype='U')
-            BEGIN
-                CREATE TABLE RefreshTokens (
-                    Id              INT IDENTITY(1,1) PRIMARY KEY,
-                    UsuarioId       INT NOT NULL FOREIGN KEY REFERENCES Usuarios(Id) ON DELETE CASCADE,
-                    Token           NVARCHAR(256) NOT NULL,
-                    FechaCreacion   DATETIME2 NOT NULL,
-                    FechaExpiracion DATETIME2 NOT NULL,
-                    Revocado        BIT NOT NULL DEFAULT 0,
-                    ReemplazadoPor  NVARCHAR(256) NULL
-                );
-                CREATE UNIQUE INDEX IX_RefreshTokens_Token ON RefreshTokens(Token);
-            END
+        var bootstrapLogger = scope.ServiceProvider
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("DatabaseBootstrapper");
 
-            UPDATE Usuarios 
-            SET PasswordHash = '$2a$11$UZ8mNYO7Ss0T41oYzfqHt.ILCFlrmVxEUZr6/i1cdBZ1qAxBhrBj.'
-            WHERE Username = 'admin' AND PasswordHash = 'admin123';
-
-            UPDATE Usuarios 
-            SET PasswordHash = '$2a$11$fOK8ihp4BxXTrxjzGqw8Gu6Zdv1ZFFmA4XMX5KD26UjdsyLaovOfO'
-            WHERE Username = 'cliente' AND PasswordHash = 'cliente123';
-        ");
-    }
-
-    if (telemetryDb.Database.IsRelational())
-    {
-        telemetryDb.Database.ExecuteSqlRaw(@"
-            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='LecturasCorazon' AND xtype='U')
-            BEGIN
-                CREATE TABLE LecturasCorazon (
-                    Id              INT IDENTITY(1,1) PRIMARY KEY,
-                    DispositivoId   NVARCHAR(50) NOT NULL,
-                    IR              BIGINT NOT NULL,
-                    BPM             DECIMAL(5,1) NOT NULL,
-                    BPMPromedio     INT NOT NULL,
-                    GsrRaw          INT NOT NULL DEFAULT 0,
-                    GsrVoltaje      DECIMAL(5,3) NOT NULL DEFAULT 0.0,
-                    Aura            NVARCHAR(50) NULL,
-                    FechaHora       DATETIME2 NOT NULL
-                )
-            END
-            ELSE
-            BEGIN
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('LecturasCorazon') AND name = 'GsrRaw')
+        if (adminDb.Database.IsRelational())
+        {
+            adminDb.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'Email')
                 BEGIN
-                    ALTER TABLE LecturasCorazon ADD GsrRaw INT NOT NULL DEFAULT 0;
+                    ALTER TABLE Usuarios ADD Email NVARCHAR(100) NOT NULL DEFAULT 'temp@corsync.com';
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('LecturasCorazon') AND name = 'GsrVoltaje')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'NombreCompleto')
                 BEGIN
-                    ALTER TABLE LecturasCorazon ADD GsrVoltaje DECIMAL(5,3) NOT NULL DEFAULT 0.0;
+                    ALTER TABLE Usuarios ADD NombreCompleto NVARCHAR(100) NOT NULL DEFAULT '';
                 END
-                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('LecturasCorazon') AND name = 'Aura')
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'FechaRegistro')
                 BEGIN
-                    ALTER TABLE LecturasCorazon ADD Aura NVARCHAR(50) NULL;
+                    ALTER TABLE Usuarios ADD FechaRegistro DATETIME2 NOT NULL DEFAULT GETUTCDATE();
                 END
-            END
-        ");
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'Activo')
+                BEGIN
+                    ALTER TABLE Usuarios ADD Activo BIT NOT NULL DEFAULT 1;
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'NombreEspiritual')
+                BEGIN
+                    ALTER TABLE Usuarios ADD NombreEspiritual NVARCHAR(100) NOT NULL DEFAULT '';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'SignoZodiacal')
+                BEGIN
+                    ALTER TABLE Usuarios ADD SignoZodiacal NVARCHAR(30) NOT NULL DEFAULT '';
+                END
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Usuarios') AND name = 'FotoUrl')
+                BEGIN
+                    ALTER TABLE Usuarios ADD FotoUrl NVARCHAR(500) NULL;
+                END
+
+                IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Usuarios_Username' AND object_id = OBJECT_ID('Usuarios'))
+                BEGIN
+                    CREATE UNIQUE INDEX IX_Usuarios_Username ON Usuarios(Username);
+                END
+                IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Usuarios_Email' AND object_id = OBJECT_ID('Usuarios'))
+                BEGIN
+                    CREATE UNIQUE INDEX IX_Usuarios_Email ON Usuarios(Email);
+                END
+
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='RefreshTokens' AND xtype='U')
+                BEGIN
+                    CREATE TABLE RefreshTokens (
+                        Id              INT IDENTITY(1,1) PRIMARY KEY,
+                        UsuarioId       INT NOT NULL FOREIGN KEY REFERENCES Usuarios(Id) ON DELETE CASCADE,
+                        Token           NVARCHAR(256) NOT NULL,
+                        FechaCreacion   DATETIME2 NOT NULL,
+                        FechaExpiracion DATETIME2 NOT NULL,
+                        Revocado        BIT NOT NULL DEFAULT 0,
+                        ReemplazadoPor  NVARCHAR(256) NULL
+                    );
+                    CREATE UNIQUE INDEX IX_RefreshTokens_Token ON RefreshTokens(Token);
+                END
+
+                UPDATE Usuarios 
+                SET PasswordHash = '$2a$11$UZ8mNYO7Ss0T41oYzfqHt.ILCFlrmVxEUZr6/i1cdBZ1qAxBhrBj.'
+                WHERE Username = 'admin' AND PasswordHash = 'admin123';
+
+                UPDATE Usuarios 
+                SET PasswordHash = '$2a$11$fOK8ihp4BxXTrxjzGqw8Gu6Zdv1ZFFmA4XMX5KD26UjdsyLaovOfO'
+                WHERE Username = 'cliente' AND PasswordHash = 'cliente123';
+            ");
+
+            // Esquema y catálogo base de la plataforma comercial (productos, proveedores,
+            // compras, cotizaciones, FAQ y bitacora de correos).
+            DatabaseBootstrapper.ActualizarEsquemaComercial(adminDb, bootstrapLogger);
+        }
+
+        if (telemetryDb.Database.IsRelational())
+        {
+            telemetryDb.Database.ExecuteSqlRaw(@"
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='LecturasCorazon' AND xtype='U')
+                BEGIN
+                    CREATE TABLE LecturasCorazon (
+                        Id              INT IDENTITY(1,1) PRIMARY KEY,
+                        DispositivoId   NVARCHAR(50) NOT NULL,
+                        IR              BIGINT NOT NULL,
+                        BPM             DECIMAL(5,1) NOT NULL,
+                        BPMPromedio     INT NOT NULL,
+                        GsrRaw          INT NOT NULL DEFAULT 0,
+                        GsrVoltaje      DECIMAL(5,3) NOT NULL DEFAULT 0.0,
+                        Aura            NVARCHAR(50) NULL,
+                        FechaHora       DATETIME2 NOT NULL
+                    )
+                END
+                ELSE
+                BEGIN
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('LecturasCorazon') AND name = 'GsrRaw')
+                    BEGIN
+                        ALTER TABLE LecturasCorazon ADD GsrRaw INT NOT NULL DEFAULT 0;
+                    END
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('LecturasCorazon') AND name = 'GsrVoltaje')
+                    BEGIN
+                        ALTER TABLE LecturasCorazon ADD GsrVoltaje DECIMAL(5,3) NOT NULL DEFAULT 0.0;
+                    END
+                    IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('LecturasCorazon') AND name = 'Aura')
+                    BEGIN
+                        ALTER TABLE LecturasCorazon ADD Aura NVARCHAR(50) NULL;
+                    END
+                END
+            ");
+        }
     }
 }
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogWarning(ex, "No se pudo conectar o inicializar la base de datos SQL Server remota. Verifique las credenciales/red o configure una cadena vacia en appsettings.json para usar InMemory.");
+}
 
-//if (app.Environment.IsDevelopment())
-//{
 app.UseSwagger();
-    app.UseSwaggerUI();
-//}
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "CORSYNC API v1");
+    c.RoutePrefix = string.Empty;
+});
+
+// Sirve las imagenes subidas desde wwwroot/uploads. La carpeta se crea al
+// arrancar para que UseStaticFiles no falle en una instalacion limpia.
+var rutaWebRoot = app.Environment.WebRootPath
+    ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+Directory.CreateDirectory(Path.Combine(rutaWebRoot, "uploads", "productos"));
+app.UseStaticFiles();
 
 app.UseRouting();
+
+// CORS debe resolverse antes de la autenticacion para que el preflight OPTIONS
+// no sea rechazado con 401 en los endpoints protegidos.
+app.UseCors(PoliticaCors);
 
 app.UseAuthentication();
 app.UseAuthorization();
