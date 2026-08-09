@@ -1,103 +1,238 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CORSYNC.Core.Domain;
+using CORSYNC.Core.DTOs;
+using CORSYNC.Core.Interfaces;
 using CORSYNC.Infrastructure.Database;
 
 namespace CORSYNC.Api.Controllers
 {
+    /// <summary>
+    /// Cotizacion de la pulsera CORSYNC. El precio de lista no es un valor fijo: se
+    /// deriva del metodo de costeo de la empresa (costo promedio ponderado de la
+    /// materia prima segun la explosion de materiales, mas mano de obra, gastos
+    /// indirectos y margen de utilidad).
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class CotizacionController : ControllerBase
     {
-        private readonly AdminDbContext _context;
+        private const int ProductoCorsyncId = 1;
 
-        public CotizacionController(AdminDbContext context)
+        private readonly AdminDbContext _context;
+        private readonly ICosteoService _costeo;
+
+        public CotizacionController(AdminDbContext context, ICosteoService costeo)
         {
             _context = context;
+            _costeo = costeo;
         }
 
-        public class CotizacionRequest
-        {
-            public string NombreCliente { get; set; } = string.Empty;
-            public string NombreProducto { get; set; } = "Espejo CORSYNC Standard";
-            public decimal AnchoCm { get; set; }
-            public decimal AltoCm { get; set; }
-            public int DensidadLedId { get; set; } = 3; // MateriaPrimaId for LED strip
-        }
-
+        /// <summary>Calcula la cotizacion, la registra y devuelve el desglose completo.</summary>
         [HttpPost("calcular")]
         public async Task<IActionResult> CalcularCotizacion([FromBody] CotizacionRequest request)
         {
-            if (request == null || request.AnchoCm <= 0 || request.AltoCm <= 0)
+            if (!ModelState.IsValid)
             {
-                return BadRequest("Dimensiones inválidas.");
+                return BadRequest(ModelState);
             }
 
-            // Fetch raw materials from DB to perform costing
-            var vidrio = await _context.MateriasPrimas.FirstOrDefaultAsync(m => m.Id == 1);
-            var marco = await _context.MateriasPrimas.FirstOrDefaultAsync(m => m.Id == 2);
-            var led = await _context.MateriasPrimas.FirstOrDefaultAsync(m => m.Id == request.DensidadLedId);
-            var sensor = await _context.MateriasPrimas.FirstOrDefaultAsync(m => m.Id == 4);
-            var esp32 = await _context.MateriasPrimas.FirstOrDefaultAsync(m => m.Id == 5);
-
-            if (vidrio == null || marco == null || led == null || sensor == null || esp32 == null)
+            if (!request.AceptaPrivacidad)
             {
-                return StatusCode(500, "Componentes de costeo no inicializados en base de datos.");
+                return BadRequest("Debes aceptar la política de privacidad para solicitar una cotización.");
             }
 
-            // Calculate costs based on area and perimeter
-            decimal areaCm2 = request.AnchoCm * request.AltoCm;
-            decimal perimetroMetros = (2 * (request.AnchoCm + request.AltoCm)) / 100m;
+            var costo = await _costeo.CalcularCostoProductoAsync(ProductoCorsyncId);
+            if (costo == null)
+            {
+                return StatusCode(500, "El catálogo de costeo no está inicializado en la base de datos.");
+            }
 
-            decimal costoVidrio = areaCm2 * vidrio.CostoUnidad;
-            decimal costoMarco = perimetroMetros * marco.CostoUnidad;
-            decimal costoLed = perimetroMetros * led.CostoUnidad;
-            decimal costoElectronica = sensor.CostoUnidad + esp32.CostoUnidad;
+            string licencia = ReglasComerciales.NormalizarLicencia(request.TipoLicencia);
+            decimal factorLicencia = ReglasComerciales.FactorLicencia(licencia);
 
-            decimal costoMateriales = costoVidrio + costoMarco + costoLed + costoElectronica;
-            
-            // Assembly overhead: 30% of material cost
-            decimal recargoEnsamblaje = costoMateriales * 0.30m;
-            decimal total = costoMateriales + recargoEnsamblaje;
+            decimal precioUnitario = Math.Round(costo.PrecioLista * factorLicencia, 2, MidpointRounding.AwayFromZero);
+            decimal subtotal = Math.Round(precioUnitario * request.Cantidad, 2, MidpointRounding.AwayFromZero);
 
-            total = Math.Round(total, 2);
+            decimal descuentoPorcentaje = ReglasComerciales.DescuentoPorVolumen(request.Cantidad);
+            decimal descuentoMonto = Math.Round(subtotal * descuentoPorcentaje, 2, MidpointRounding.AwayFromZero);
 
+            var serviciosSeleccionados = new List<ConceptoCosto>();
+            var clavesServicios = new List<string>();
+            foreach (var clave in request.Servicios.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var normalizada = (clave ?? string.Empty).Trim().ToLowerInvariant();
+                if (ReglasComerciales.Servicios.TryGetValue(normalizada, out var servicio))
+                {
+                    serviciosSeleccionados.Add(new ConceptoCosto
+                    {
+                        Concepto = servicio.Nombre,
+                        Detalle = servicio.Detalle,
+                        Importe = servicio.Precio
+                    });
+                    clavesServicios.Add(normalizada);
+                }
+            }
+
+            decimal totalServicios = serviciosSeleccionados.Sum(s => s.Importe);
+            decimal baseGravable = subtotal - descuentoMonto + totalServicios;
+            decimal impuestos = Math.Round(baseGravable * ReglasComerciales.TasaImpuesto, 2, MidpointRounding.AwayFromZero);
+            decimal total = Math.Round(baseGravable + impuestos, 2, MidpointRounding.AwayFromZero);
+
+            var ahora = DateTime.UtcNow;
             var cotizacion = new Cotizacion
             {
-                NombreCliente = request.NombreCliente,
-                NombreProducto = request.NombreProducto,
-                Ancho = request.AnchoCm,
-                Alto = request.AltoCm,
+                NombreCliente = request.NombreCliente.Trim(),
+                Empresa = (request.Empresa ?? string.Empty).Trim(),
+                Email = request.Email.Trim(),
+                Telefono = (request.Telefono ?? string.Empty).Trim(),
+                Pais = (request.Pais ?? string.Empty).Trim(),
+                ProductoId = ProductoCorsyncId,
+                NombreProducto = costo.Producto,
+                Cantidad = request.Cantidad,
+                TipoLicencia = licencia,
+                Servicios = string.Join(",", clavesServicios),
+                Mensaje = request.Mensaje?.Trim(),
+                CostoMateriaPrima = costo.CostoMateriaPrima,
+                CostoManoObra = costo.CostoManoObra,
+                CostoIndirecto = costo.CostoIndirecto,
+                CostoUnitario = costo.CostoUnitario,
+                PrecioUnitario = precioUnitario,
+                Subtotal = subtotal,
+                DescuentoPorcentaje = descuentoPorcentaje,
+                DescuentoMonto = descuentoMonto,
+                TotalServicios = totalServicios,
+                Impuestos = impuestos,
                 CostoTotal = total,
-                FechaCotizacion = DateTime.UtcNow
+                Estado = "Nueva",
+                FechaCotizacion = ahora,
+                FechaVigencia = ahora.AddDays(30)
             };
 
             _context.Cotizaciones.Add(cotizacion);
             await _context.SaveChangesAsync();
 
-            return Ok(new
+            cotizacion.Folio = $"COT-{ahora:yyyy}-{cotizacion.Id:D5}";
+            await _context.SaveChangesAsync();
+
+            return Ok(new CotizacionResponse
             {
-                Cotizacion = cotizacion,
-                Desglose = new
+                Id = cotizacion.Id,
+                Folio = cotizacion.Folio,
+                NombreProducto = costo.Producto,
+                Cantidad = request.Cantidad,
+                TipoLicencia = licencia,
+                DesgloseMateriaPrima = costo.Materiales.Select(m => new ConceptoCosto
                 {
-                    CostoVidrio = Math.Round(costoVidrio, 2),
-                    CostoMarco = Math.Round(costoMarco, 2),
-                    CostoLed = Math.Round(costoLed, 2),
-                    CostoElectronica = Math.Round(costoElectronica, 2),
-                    CostoMateriaPrimaTotal = Math.Round(costoMateriales, 2),
-                    RecargoEnsamblaje = Math.Round(recargoEnsamblaje, 2),
-                    Total = total
-                }
+                    Concepto = m.MateriaPrima,
+                    Detalle = $"{m.CantidadConMerma:0.##} {m.UnidadMedida} x {m.CostoUnitario:0.00}",
+                    Importe = m.CostoTotal
+                }).ToList(),
+                CostoMateriaPrima = costo.CostoMateriaPrima,
+                CostoManoObra = costo.CostoManoObra,
+                CostoIndirecto = costo.CostoIndirecto,
+                CostoUnitario = costo.CostoUnitario,
+                MargenUtilidad = costo.MargenUtilidad,
+                PrecioLista = costo.PrecioLista,
+                PrecioUnitario = precioUnitario,
+                Subtotal = subtotal,
+                DescuentoPorcentaje = descuentoPorcentaje,
+                DescuentoMonto = descuentoMonto,
+                Servicios = serviciosSeleccionados,
+                TotalServicios = totalServicios,
+                Impuestos = impuestos,
+                Total = total,
+                FechaCotizacion = cotizacion.FechaCotizacion,
+                FechaVigencia = cotizacion.FechaVigencia
             });
         }
 
+        /// <summary>Parametros publicos del cotizador para armar el formulario.</summary>
+        [HttpGet("parametros")]
+        public async Task<IActionResult> GetParametros()
+        {
+            var costo = await _costeo.CalcularCostoProductoAsync(ProductoCorsyncId);
+            if (costo == null)
+            {
+                return StatusCode(500, "El catálogo de costeo no está inicializado en la base de datos.");
+            }
+
+            return Ok(new
+            {
+                Producto = costo.Producto,
+                costo.PrecioLista,
+                Licencias = new[]
+                {
+                    new { Clave = "Individual", Nombre = "Individual", Factor = 1.00m, Precio = Math.Round(costo.PrecioLista, 2), Descripcion = "Para uso personal. Una pulsera y una cuenta en la app." },
+                    new { Clave = "Corporativa", Nombre = "Corporativa", Factor = 0.90m, Precio = Math.Round(costo.PrecioLista * 0.90m, 2), Descripcion = "Para programas de bienestar. Panel de equipo y facturación." },
+                    new { Clave = "Enterprise", Nombre = "Enterprise", Factor = 0.83m, Precio = Math.Round(costo.PrecioLista * 0.83m, 2), Descripcion = "Para distribuidores y despliegues grandes. Precio de mayoreo." }
+                },
+                Servicios = ReglasComerciales.Servicios.Select(s => new
+                {
+                    Clave = s.Key,
+                    s.Value.Nombre,
+                    s.Value.Precio,
+                    s.Value.Detalle
+                }),
+                DescuentosVolumen = new[]
+                {
+                    new { Desde = 10, Porcentaje = 0.10m },
+                    new { Desde = 50, Porcentaje = 0.15m },
+                    new { Desde = 100, Porcentaje = 0.20m }
+                },
+                TasaImpuesto = ReglasComerciales.TasaImpuesto
+            });
+        }
+
+        [Authorize(Roles = "Admin")]
         [HttpGet]
         public async Task<IActionResult> GetCotizaciones()
         {
-            var cotizaciones = await _context.Cotizaciones.ToListAsync();
+            var cotizaciones = await _context.Cotizaciones
+                .OrderByDescending(c => c.FechaCotizacion)
+                .ToListAsync();
             return Ok(cotizaciones);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{id}/estado")]
+        public async Task<IActionResult> ActualizarEstado(int id, [FromBody] string estado)
+        {
+            var cotizacion = await _context.Cotizaciones.FindAsync(id);
+            if (cotizacion == null)
+            {
+                return NotFound("Cotización no encontrada.");
+            }
+
+            var permitidos = new[] { "Nueva", "Contactado", "Cerrada" };
+            if (!permitidos.Contains(estado))
+            {
+                return BadRequest("Estado inválido. Usa Nueva, Contactado o Cerrada.");
+            }
+
+            cotizacion.Estado = estado;
+            await _context.SaveChangesAsync();
+            return Ok(cotizacion);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> EliminarCotizacion(int id)
+        {
+            var cotizacion = await _context.Cotizaciones.FindAsync(id);
+            if (cotizacion == null)
+            {
+                return NotFound("Cotización no encontrada.");
+            }
+
+            _context.Cotizaciones.Remove(cotizacion);
+            await _context.SaveChangesAsync();
+            return Ok(new { Message = "Cotización eliminada." });
         }
     }
 }
