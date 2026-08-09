@@ -155,105 +155,383 @@ La aplicación móvil es el canal principal de interacción del usuario con el s
 
 ## 6. Módulos del Sistema Web Comercial (Backoffice y Portal)
 
-La plataforma web administra la operación comercial, la cadena de suministro y el ciclo de vida del cliente. Segmentada en tres secciones con control de acceso basado en roles (RBAC):
+La plataforma web administra la operación comercial, la cadena de suministro y el ciclo de vida del cliente, con control de acceso basado en roles (`Admin` y `Cliente`) resuelto por JWT.
 
-### A. Sección Pública
-* **Landing Page:** Presentación del producto y sus capacidades técnicas de monitoreo biométrico en tiempo real.
-* **Empresa / Producto:** Descripción de la empresa, el equipo y la propuesta de valor del sistema.
-* **Comentarios de Clientes:** Sección de testimonios con opiniones aprobadas por moderación.
-* **Cotizador Dinámico:**
-  * Formulario interactivo de cotización basado en el método de costeo de materia prima.
-  * Calcula el costo del producto según los componentes seleccionados (dimensiones, tipo de marco, sensores, componentes electrónicos) más costos de ensamblaje.
-  * Genera cotización formal descargable en PDF.
+ThinkUp comercializa **un único producto: la pulsera CORSYNC**. No hay variantes ni modelos alternativos; lo que varía en la cotización es el volumen, el tipo de licencia y los servicios contratados.
 
-### B. Sección Administrador
-* **Gestión de Usuarios:** Creación, edición y suspensión de cuentas (clientes, administradores, soporte).
-* **Seguimiento de Comentarios:** Moderación de testimonios con aprobación, rechazo y control de spam.
-* **Gestión de Proveedores:** Registro de proveedores de componentes electrónicos (ESP32, MAX30102, cableado) e insumos físicos (marcos, resinas, cristales).
-* **Compras y Abastecimiento:** Órdenes de compra con alertas automáticas cuando el stock desciende del mínimo de seguridad.
-* **Inventario de Materia Prima:** Control de existencias en almacén (hardware y materiales de manufactura).
-* **Explosión de Materiales (BOM — Bill of Materials):**
-  * Definición de recetas de producto para cada modelo (estándar, premium, corporativo).
-  * Desglose jerárquico de componentes para cálculo de costos y planificación de producción.
+### A. Sección pública
+* **Portada:** presentación de la empresa y del producto, con las dos señales que mide (actividad galvánica y ritmo cardíaco) y cómo se convierten en el aura.
+* **Producto:** galería de imágenes, características, recorrido del sensor al aura, ficha técnica y documentación. Todo el contenido proviene de la base de datos y es editable desde el panel.
+* **Valoraciones:** opiniones con calificación de 1 a 5, promedio, histograma y respuesta pública de ThinkUp. Sólo se publican tras aprobación.
+* **Preguntas frecuentes:** agrupadas por categoría, con buscador.
+* **Cotizador:** formulario que calcula el precio a partir del método de costeo y **muestra el desglose completo en la misma página**, incluida la explosión de materiales que lo sustenta. La cotización queda registrada con su folio.
+* **Contacto:** datos de la empresa y formulario que alimenta la bandeja del administrador.
 
-### C. Sección Clientes
-* **Documentación del Producto:** Descarga de manuales de usuario, guías de montaje y documentación técnica del sensor.
-* **Historial de Compras:** Consulta de pedidos, estados de envío, facturas y cotizaciones previas.
-* **Panel de Opiniones:** Formulario para que clientes verificados califiquen su experiencia con el producto.
+### B. Sección de administración
+* **Tablero:** indicadores comerciales y de producción, composición del costo y unidades fabricables con el inventario actual.
+* **Usuarios:** alta, edición, activación y baja de administradores y clientes. Al dar de alta un cliente se genera una contraseña temporal y se compone el correo con sus datos de acceso.
+* **Valoraciones:** moderación con aprobar, retirar, responder públicamente y eliminar.
+* **Proveedores:** catálogo con datos de contacto y estado.
+* **Compras a proveedores:** órdenes con detalle por insumo. **Al recibir una orden se recalcula el costo promedio ponderado** de cada insumo y el efecto se muestra en pantalla.
+* **Materia prima:** inventario valuado al costo promedio ponderado, con stock mínimo y alerta de insumos críticos.
+* **Producto:** parámetros de costeo, **explosión de materiales (BOM)**, galería de imágenes, ficha comercial y documentación.
+* **Preguntas frecuentes, cotizaciones, ventas, mensajes y bitácora de correos.**
+
+### C. Sección de clientes
+* **Perfil:** datos de la cuenta y cambio de contraseña.
+* **Documentación:** manuales y guías, filtradas por los productos que el cliente efectivamente compró.
+* **Compras:** historial con folio, estado, número de serie y opción de dejar una opinión sobre el producto adquirido.
 
 ---
 
-## 7. Cronograma de Planeación del Backend (Fases de Implementación)
+## 7. Estado de Implementación
 
-La implementación del backend en ASP.NET Core se organiza en **tres fases principales** con alcance incremental:
+| Fase | Alcance | Estado |
+| :---: | :--- | :---: |
+| **1** | Infraestructura y modelos: proyecto en tres capas, contextos `AdminDbContext` y `TelemetryDbContext`, entidades con EF Core. | ✅ Implementado |
+| **2** | Ingesta MQTT: Background Worker suscrito a HiveMQ bajo TLS, pipeline de limpieza y *throttling* en memoria. | ✅ Implementado |
+| **3** | Streaming SignalR y API REST: hub de telemetría y 18 controladores REST con autenticación JWT. | ✅ Implementado |
+| **4** | Plataforma comercial: costeo, cotizador, cadena de suministro, portal de clientes y galería de producto. | ✅ Implementado |
 
-| Fase | Título | Descripción de Actividades | Entregables Principales | Estado |
-| :---: | :--- | :--- | :--- | :---: |
-| **1** | Infraestructura y Modelos | Configuración del proyecto monolítico, diseño de las bases de datos particionadas (`CORSYNC_Admin`, `CORSYNC_Telemetry`), modelado de entidades con EF Core y migraciones iniciales. | `AdminDbContext`, `TelemetryDbContext`, modelo `LecturaCorazon`, esquemas de tablas aplicados. | ⬜ Pendiente |
-| **2** | Ingesta MQTT Bridge | Implementación del `IHostedService` (Background Worker) para suscripción al broker HiveMQ Cloud bajo TLS. Pipeline de sanitización, filtros de outliers y throttling en memoria con flush periódico a BD. | Background Worker funcional, pipeline de limpieza de datos, lógica de guardado en lote cada N segundos. | ⬜ Pendiente |
-| **3** | Streaming SignalR y API REST | Desarrollo de los Hubs de SignalR para push de lecturas en tiempo real. Construcción de endpoints REST para administración, cotizador dinámico, autenticación JWT y CRUD del backoffice. | SignalR Hub, API Controllers (cotizador, usuarios, inventario, proveedores), autenticación JWT. | ⬜ Pendiente |
-
-### Tareas Pendientes Fuera de Fase (Backlog)
+### Backlog
 
 | Tarea | Descripción | Prioridad |
 | :--- | :--- | :---: |
-| Módulo Sensor GSR (Piel) | Definir payload JSON, modelo `LecturaPiel`, tópico MQTT, integración al Background Worker, adaptación de SignalR y gráficas en la app móvil. | 🔴 Alta |
-| Gamificación Backend | Endpoints de logros, sistema de puntos y persistencia de hitos del usuario. | 🟡 Media |
-| Exportación de Reportes | Generación de reportes PDF/Excel desde el panel administrativo (ventas, inventario, telemetría). | 🟡 Media |
+| Módulo sensor GSR en el pipeline IoT | El sitio comercial ya documenta el sensor GSR, pero el pipeline de telemetría sólo ingiere el MAX30102. Falta definir el payload, el modelo `LecturaPiel` y su tópico MQTT. | 🔴 Alta |
+| Secretos fuera del repositorio | Mover las credenciales de BD, MQTT y la llave JWT de `appsettings.json` a variables de entorno o a un gestor de secretos. | 🔴 Alta |
+| Cuentas de BD con privilegios acotados | Aplicar `Tools/crear-usuarios-bd.sql` en la instancia publicada. | 🟠 Media |
+| Exportación de cotizaciones a PDF | Hoy la cotización se muestra en pantalla y puede imprimirse desde el navegador; no se genera un PDF en el servidor. | 🟡 Baja |
 
 ---
 
 ## 8. Instrucciones de Despliegue y Configuración
 
-### Requisitos Previos
-* **Runtime:** .NET 8.0 SDK o superior.
-* **Base de Datos:** Microsoft SQL Server o MySQL Server.
-* **Broker MQTT:** Cuenta activa en HiveMQ Cloud con TLS habilitado.
+### Requisitos previos
+* **.NET SDK 8.0** o superior (`dotnet --version`).
+* **SQL Server 2019+** — opcional: sin cadena de conexión la API arranca con base de datos en memoria.
+* **HiveMQ Cloud** — sólo si se quiere ingesta MQTT real.
 
-### Configuración del Entorno (`appsettings.json`)
+### Puesta en marcha local
+
+**1. Restaurar y compilar**
+
+```bash
+dotnet restore CORSYNC.slnx
+```
+
+```bash
+dotnet build CORSYNC.slnx
+```
+
+**2. Arrancar la API**
+
+Opción A — script incluido. Usa **base de datos en memoria**, con el catálogo
+completo sembrado en cada arranque, sin tocar la base publicada:
+
+```bash
+powershell -File Tools/run-local-api.ps1
+```
+
+Opción B — equivalente sin el script:
+
+```powershell
+cd Src/CORSYNC.Api
+$env:ConnectionStrings__AdminConnection=""; $env:ConnectionStrings__TelemetryConnection=""; $env:ASPNETCORE_URLS="http://localhost:5213"; dotnet run
+```
+
+Opción C — contra SQL Server, con las cadenas de `appsettings.json`:
+
+```bash
+dotnet run --project Src/CORSYNC.Api/CORSYNC.Api.csproj
+```
+
+**3. Comprobar**
+
+```bash
+curl http://localhost:5213/api/producto/1
+```
+
+Swagger: <http://localhost:5213/swagger>
+
+**4. Pruebas**
+
+```bash
+dotnet test CORSYNC.slnx
+```
+
+**5. Detener**
+
+`Ctrl+C`, o si quedó en segundo plano:
+
+```powershell
+Get-Process CORSYNC.Api -ErrorAction SilentlyContinue | Stop-Process -Force
+```
+
+> **La API bloquea sus propios DLL mientras corre.** Si `dotnet build` falla con
+> `MSB3027 … file is locked by CORSYNC.Api`, deténla antes de compilar.
+
+### Esquema de base de datos
+
+Este proyecto **no usa migraciones de EF Core**. El esquema se crea y evoluciona así:
+
+1. `EnsureCreated()` crea las tablas si la base está vacía.
+2. `DatabaseBootstrapper.cs` aplica el DDL restante en lotes idempotentes
+   (`IF NOT EXISTS`), porque `EnsureCreated()` no altera bases ya existentes.
+
+No hay que ejecutar `dotnet ef database update`: no hay migraciones que aplicar.
+
+### Configuración (`appsettings.json`)
 
 ```json
 {
   "ConnectionStrings": {
-    "AdminConnection": "Server=localhost;Database=CORSYNC_Admin;User Id=sa;Password=<TU_PASSWORD>;TrustServerCertificate=True;",
-    "TelemetryConnection": "Server=localhost;Database=CORSYNC_Telemetry;User Id=sa;Password=<TU_PASSWORD>;TrustServerCertificate=True;"
+    "AdminConnection": "Server=localhost;Database=CORSYNC_Admin;User Id=corsync_app;Password=<PASSWORD>;TrustServerCertificate=True;",
+    "TelemetryConnection": "Server=localhost;Database=CORSYNC_Telemetry;User Id=corsync_app;Password=<PASSWORD>;TrustServerCertificate=True;"
+  },
+  "Cors": {
+    "Origins": [ "https://mi-dominio-publicado.com" ]
+  },
+  "Smtp": {
+    "Habilitado": false,
+    "Host": "smtp.gmail.com",
+    "Port": 587,
+    "EnableSsl": true,
+    "User": "<CUENTA>",
+    "Password": "<CONTRASEÑA_DE_APLICACION>",
+    "From": "no-reply@thinkup.com"
   },
   "HiveMQ": {
-    "Host": "<TU_BROKER_ID>.s1.eu.hivemq.cloud",
+    "Host": "<BROKER_ID>.s1.eu.hivemq.cloud",
     "Port": 8883,
     "Username": "<USUARIO_MQTT>",
     "Password": "<PASSWORD_MQTT>",
     "UseTls": true
   },
   "TokenConfiguration": {
-    "SecretKey": "<CLAVE_SECRETA_JWT_MIN_256_BITS>",
+    "SecretKey": "<CLAVE_JWT_MIN_256_BITS>",
     "Issuer": "CORSYNCServer",
     "Audience": "CORSYNCClients"
   }
 }
 ```
 
-### Variables de Entorno Requeridas
+**Notas de configuración**
 
-| Variable | Descripción | Ejemplo |
-| :--- | :--- | :--- |
-| `ConnectionStrings__AdminConnection` | Cadena de conexión a la BD administrativa | `Server=localhost;Database=CORSYNC_Admin;...` |
-| `ConnectionStrings__TelemetryConnection` | Cadena de conexión a la BD de telemetría | `Server=localhost;Database=CORSYNC_Telemetry;...` |
-| `HiveMQ__Host` | Host del broker HiveMQ Cloud | `abc123.s1.eu.hivemq.cloud` |
-| `HiveMQ__Port` | Puerto MQTT con TLS | `8883` |
-| `HiveMQ__Username` | Usuario de autenticación MQTT | `App_Gateway_Client` |
-| `HiveMQ__Password` | Contraseña del broker MQTT | `*****` |
-| `HiveMQ__UseTls` | Habilitar conexión TLS/SSL | `true` |
+* `Cors:Origins` es una lista blanca. `http://localhost:4200` ya viene permitido por código para desarrollo; en producción hay que añadir aquí el dominio del sitio, o el navegador bloqueará las llamadas.
+* `Smtp:Habilitado` en `false` deja los correos registrados en la tabla `CorreosEnviados`, consultables desde `/admin/correos`. Poniéndolo en `true` con credenciales válidas, el envío pasa a ser real sin tocar código.
 
-### Ejecución en Consola
+### Variables de entorno
+
+Cualquier valor de `appsettings.json` puede sobrescribirse con variables de entorno usando `__` como separador de nivel:
+
+| Variable | Uso |
+| :--- | :--- |
+| `ConnectionStrings__AdminConnection` | BD de negocio. **Vacía ⇒ base en memoria.** |
+| `ConnectionStrings__TelemetryConnection` | BD de telemetría. Vacía ⇒ base en memoria. |
+| `ASPNETCORE_URLS` | Dirección de escucha, p. ej. `http://localhost:5213` |
+| `ASPNETCORE_ENVIRONMENT` | `Development` o `Production` |
+| `Smtp__Habilitado`, `Smtp__Host`, `Smtp__User`, `Smtp__Password` | Envío de correo real |
+| `TokenConfiguration__SecretKey` | Llave de firma del JWT |
+| `HiveMQ__Host`, `HiveMQ__Username`, `HiveMQ__Password` | Broker MQTT |
+
+> `appsettings.Development.json` deja las cadenas de conexión vacías a propósito, para que trabajar en local nunca escriba en la base publicada. **Cuidado:** si se despliega con `ASPNETCORE_ENVIRONMENT=Development`, la API usaría base en memoria y perdería los datos al reiniciar.
+
+### Utilidades incluidas (`Tools/`)
+
+| Script | Para qué |
+| :--- | :--- |
+| `run-local-api.ps1` | Arranca la API en local con base en memoria |
+| `subir-imagenes-producto.ps1` | Sube en bloque las imágenes de un producto a su galería |
+| `crear-usuarios-bd.sql` | Crea las cuentas `corsync_app` y `corsync_lectura` con privilegios acotados (requisito 6b) |
+| `iot-simulator/` | Simulador del dispositivo para probar la telemetría sin hardware |
+
 ```bash
-# 1. Restaurar dependencias
-dotnet restore
-
-# 2. Aplicar migraciones de base de datos
-dotnet ef database update --context AdminDbContext
-dotnet ef database update --context TelemetryDbContext
-
-# 3. Compilar y ejecutar el servidor
-dotnet run --project Src/CORSYNC.Api/CORSYNC.Api.csproj
+powershell -File Tools/subir-imagenes-producto.ps1 -Carpeta C:\ruta\a\las\fotos
 ```
+
+### Cuentas de demostración
+
+| Usuario | Contraseña | Rol |
+| :--- | :--- | :--- |
+| `admin` | `admin123` | Administrador |
+| `cliente` | `cliente123` | Cliente |
+
+---
+
+## 9. Referencia de la API REST
+
+Base local: `http://localhost:5213/api` · Publicada: `http://corsync.runasp.net/api`
+Documentación interactiva: `/swagger`
+
+La columna **Acceso** indica: *Público* (sin token), *Autenticado* (cualquier sesión), *Cliente* (filtrado por el usuario del token) o *Admin* (rol `Admin`).
+
+### Autenticación — `/api/auth`
+
+| Verbo | Ruta | Acceso | Descripción |
+| :--- | :--- | :--- | :--- |
+| POST | `/register` | Público | Alta como cliente; devuelve JWT |
+| POST | `/login` | Público | Inicio de sesión |
+| POST | `/logout` | Autenticado | Revoca el token de refresco |
+| POST | `/refresh-token` | Público | Rota el par de tokens |
+| GET | `/profile` | Autenticado | Perfil del usuario del token |
+
+### Producto — `/api/producto`
+
+| Verbo | Ruta | Acceso | Descripción |
+| :--- | :--- | :--- | :--- |
+| GET | `/` | Público | Catálogo con precio y portada |
+| GET | `/{id}` | Público | Detalle con galería, características, ficha técnica y documentos |
+| GET | `/{id}/costo` | Admin | Explosión de materiales valuada |
+| POST | `/` | Admin | Alta de producto |
+| PUT | `/{id}` | Admin | Edición y parámetros de costeo |
+| POST | `/receta` | Admin | Alta o edición de un renglón de la receta |
+| DELETE | `/receta/{recetaId}` | Admin | Quita un insumo de la receta |
+| GET | `/{id}/imagenes` | Público | Galería |
+| POST | `/{id}/imagenes` | Admin | Sube una imagen (multipart, máx. 5 MB) |
+| PUT | `/imagenes/{id}` | Admin | Título, descripción u orden |
+| DELETE | `/imagenes/{id}` | Admin | Elimina registro y archivo |
+| GET · POST | `/{id}/caracteristicas` | Público · Admin | Características destacadas |
+| DELETE | `/caracteristicas/{id}` | Admin | — |
+| GET · POST | `/{id}/especificaciones` | Público · Admin | Ficha técnica |
+| DELETE | `/especificaciones/{id}` | Admin | — |
+| GET · POST | `/{id}/documentos` | Público · Admin | Manuales y guías |
+| DELETE | `/documentos/{id}` | Admin | — |
+
+### Cotización — `/api/cotizacion`
+
+| Verbo | Ruta | Acceso | Descripción |
+| :--- | :--- | :--- | :--- |
+| GET | `/parametros` | Público | Licencias, servicios, descuentos e IVA |
+| POST | `/calcular` | Público | Calcula, registra y devuelve el desglose completo |
+| GET | `/` | Admin | Solicitudes recibidas |
+| PUT | `/{id}/estado` | Admin | `Nueva` · `Contactado` · `Cerrada` |
+| DELETE | `/{id}` | Admin | — |
+
+### Valoraciones — `/api/comentario`
+
+| Verbo | Ruta | Acceso | Descripción |
+| :--- | :--- | :--- | :--- |
+| GET | `/aprobados` | Público | Sólo las publicadas |
+| GET | `/resumen` | Público | Promedio y distribución por estrellas |
+| POST | `/` | Público | Envía una opinión (entra pendiente) |
+| GET | `/todos` | Admin | Incluye las pendientes |
+| PUT | `/aprobar/{id}` · `/rechazar/{id}` | Admin | Moderación |
+| PUT | `/{id}/responder` | Admin | Respuesta pública |
+| DELETE | `/{id}` | Admin | — |
+
+### Preguntas frecuentes — `/api/faq`
+
+| Verbo | Ruta | Acceso |
+| :--- | :--- | :--- |
+| GET | `/` | Público (sólo activas) |
+| GET | `/todas` · POST `/` · PUT `/{id}` · DELETE `/{id}` | Admin |
+
+### Contacto — `/api/contacto`
+
+| Verbo | Ruta | Acceso | Descripción |
+| :--- | :--- | :--- | :--- |
+| GET | `/informacion` | Público | Datos de contacto de la empresa |
+| POST | `/` | Público | Envía un mensaje |
+| GET | `/` · PUT `/{id}/atendido` · DELETE `/{id}` | Admin | Bandeja |
+
+### Cadena de suministro
+
+| Verbo | Ruta | Acceso | Descripción |
+| :--- | :--- | :--- | :--- |
+| GET · POST · PUT · DELETE | `/api/proveedor` | Admin | Proveedores |
+| GET · POST · PUT · DELETE | `/api/materiaprima` | Admin | Inventario |
+| PUT | `/api/materiaprima/stock/{id}` | Admin | Ajuste manual de existencias |
+| GET | `/api/materiaprima/recetas` | Admin | Explosión de materiales |
+| GET | `/api/materiaprima/costo/{productoId}` | Admin | Costeo del producto |
+| GET · POST | `/api/compraproveedor` | Admin | Órdenes de compra |
+| **PUT** | **`/api/compraproveedor/{id}/recibir`** | Admin | **Recibe la orden y recalcula el costo promedio ponderado** |
+| PUT | `/api/compraproveedor/{id}/cancelar` | Admin | — |
+| DELETE | `/api/compraproveedor/{id}` | Admin | Sólo si no fue recibida |
+
+### Administración y clientes
+
+| Verbo | Ruta | Acceso | Descripción |
+| :--- | :--- | :--- | :--- |
+| GET | `/api/admin/dashboard` | Admin | Indicadores del tablero |
+| GET | `/api/admin/dashboard/cotizaciones-por-mes` | Admin | Serie mensual |
+| GET · POST · PUT · DELETE | `/api/admin/usuarios` | Admin | Usuarios de ambos roles |
+| POST | `/api/admin/usuarios/{id}/restablecer-password` | Admin | Nueva contraseña temporal |
+| GET | `/api/admin/correos` | Admin | Bitácora de correos |
+| GET · POST · PUT · DELETE | `/api/admin/compras-clientes` | Admin | Ventas a clientes |
+| GET | `/api/cliente/compras` | Cliente | Sus compras |
+| GET | `/api/cliente/documentos` | Cliente | Documentación de lo que compró |
+| POST | `/api/cliente/cambiar-password` | Cliente | Cambio de contraseña |
+
+### Telemetría IoT
+
+Alimentan la aplicación móvil, no el sitio comercial:
+`/api/telemetry`, `/api/readings`, `/api/analytics`, `/api/challenges`,
+`/api/medals`, `/api/recommendations`, y el hub SignalR `/telemetryHub`
+(acepta el JWT por *query string* `access_token`).
+
+---
+
+## 10. Método de Costeo
+
+El precio de venta no es un valor fijo: se calcula. Cualquier eslabón que cambie mueve el precio publicado en el sitio.
+
+```
+Compra a proveedor recibida
+   └─> costo promedio ponderado del insumo
+         (stock × costo actual + cantidad recibida × costo de compra) ÷ stock total
+   └─> explosión de materiales: Σ (cantidad × (1 + merma) × costo del insumo)
+   └─> costo primo      = materia prima + mano de obra directa
+   └─> costo unitario   = costo primo × (1 + % gastos indirectos)
+   └─> precio de lista  = costo unitario × (1 + margen de utilidad)
+   └─> precio unitario  = precio de lista × factor de licencia
+   └─> total            = (subtotal − descuento por volumen + servicios) × 1.16
+```
+
+| Concepto | Importe |
+| :--- | ---: |
+| Materia prima (10 insumos) | $61.80 |
+| Mano de obra directa | $18.20 |
+| **Costo primo** | **$80.00** |
+| Gastos indirectos (25 %) | $20.00 |
+| **Costo unitario** | **$100.00** |
+| Margen de utilidad (199 %) | $199.00 |
+| **Precio de lista** | **$299.00** |
+
+Licencias: Individual ×1.00 · Corporativa ×0.90 · Enterprise ×0.83
+Descuentos por volumen: 10 % desde 10 uds · 15 % desde 50 · 20 % desde 100
+IVA: 16 %
+
+Implementado en `CosteoService.cs` y `ReglasComerciales` (en `ICosteoService.cs`), y cubierto por `CosteoServiceTests.cs` y `CotizacionControllerTests.cs`.
+
+---
+
+## 11. Estructura de la Solución
+
+```
+CORSYNC-Backend/
+├── Src/
+│   ├── CORSYNC.Api/               Controladores, Program.cs, wwwroot
+│   │   ├── Controllers/           18 controladores REST
+│   │   ├── Hubs/                  TelemetryHub (SignalR)
+│   │   ├── Services/              SignalRBroadcastWorker
+│   │   └── wwwroot/
+│   │       ├── img/producto/      Imágenes versionadas del producto
+│   │       └── uploads/           Imágenes subidas desde el panel (fuera de git)
+│   ├── CORSYNC.Core/              Dominio, DTOs e interfaces (sin dependencias externas)
+│   │   ├── Domain/                Entidades
+│   │   ├── DTOs/                  Contratos de entrada y salida
+│   │   └── Interfaces/            ICosteoService · IEmailService · IAlmacenImagenes · …
+│   └── CORSYNC.Infrastructure/    Implementaciones
+│       ├── Database/              AdminDbContext · TelemetryDbContext · DatabaseBootstrapper
+│       ├── Costing/               CosteoService (promedio ponderado y costeo absorbente)
+│       ├── Notifications/         EmailService (SMTP real o bitácora)
+│       ├── Media/                 AlmacenImagenesLocal (validación y guardado de imágenes)
+│       ├── Auth/                  AuthService (BCrypt + JWT)
+│       ├── Telemetry/             Ingesta MQTT y procesamiento
+│       └── Gamification/          Desafíos y medallas
+├── Tests/CORSYNC.Tests/           95 pruebas (xUnit + Moq + EF InMemory)
+├── Tools/                         Scripts de apoyo
+└── Docs/                          Documentación de arquitectura e integraciones
+```
+
+> La documentación completa del proyecto web (arquitectura de la información, requerimientos, diagrama E-R y mapa de cumplimiento del requerimiento académico) está en el **README del repositorio `CORSYNC-Frontend`**.
