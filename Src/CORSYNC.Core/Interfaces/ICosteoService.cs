@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using CORSYNC.Core.DTOs;
@@ -28,28 +29,68 @@ namespace CORSYNC.Core.Interfaces
     {
         public const decimal TasaImpuesto = 0.16m;
 
-        /// <summary>Factor de precio segun el tipo de licencia contratada.</summary>
-        public static decimal FactorLicencia(string? tipoLicencia) => (tipoLicencia ?? string.Empty).Trim().ToLowerInvariant() switch
-        {
-            "corporativa" => 0.90m,
-            "enterprise" => 0.83m,
-            _ => 1.00m
-        };
+        /// <summary>Cantidad maxima de unidades admitida en una cotizacion.</summary>
+        public const int CantidadMaxima = 100;
 
-        public static string NormalizarLicencia(string? tipoLicencia) => (tipoLicencia ?? string.Empty).Trim().ToLowerInvariant() switch
+        /// <summary>
+        /// Catalogo de licencias. Es la unica fuente de verdad: tanto el calculo
+        /// como el endpoint de parametros que alimenta el formulario publico leen
+        /// de aqui, para que el precio anunciado no pueda separarse del cobrado.
+        /// </summary>
+        public static readonly IReadOnlyList<(string Clave, string Nombre, decimal Factor, string Descripcion)> Licencias =
+            new[]
+            {
+                ("Individual", "Individual", 1.00m, "Para uso personal. Una manga y una cuenta en la app."),
+                ("Corporativa", "Corporativa", 0.90m, "Para programas de bienestar. Panel de equipo y facturación."),
+                ("Enterprise", "Enterprise", 0.83m, "Para distribuidores y despliegues grandes. Precio de mayoreo.")
+            };
+
+        /// <summary>Factor de precio segun el tipo de licencia contratada.</summary>
+        public static decimal FactorLicencia(string? tipoLicencia)
         {
-            "corporativa" => "Corporativa",
-            "enterprise" => "Enterprise",
-            _ => "Individual"
-        };
+            var normalizada = (tipoLicencia ?? string.Empty).Trim();
+            foreach (var licencia in Licencias)
+            {
+                if (string.Equals(licencia.Clave, normalizada, StringComparison.OrdinalIgnoreCase))
+                {
+                    return licencia.Factor;
+                }
+            }
+            return 1.00m;
+        }
+
+        public static string NormalizarLicencia(string? tipoLicencia)
+        {
+            var normalizada = (tipoLicencia ?? string.Empty).Trim();
+            foreach (var licencia in Licencias)
+            {
+                if (string.Equals(licencia.Clave, normalizada, StringComparison.OrdinalIgnoreCase))
+                {
+                    return licencia.Clave;
+                }
+            }
+            return "Individual";
+        }
+
+        /// <summary>
+        /// Tramos de descuento por volumen, de menor a mayor. Igual que las
+        /// licencias, se publican y se aplican desde esta misma lista.
+        /// </summary>
+        public static readonly IReadOnlyList<(int Desde, decimal Porcentaje)> TramosVolumen =
+            new[] { (5, 0.10m), (15, 0.15m) };
 
         /// <summary>Descuento por volumen aplicado sobre el subtotal.</summary>
         public static decimal DescuentoPorVolumen(int cantidad)
         {
-            if (cantidad >= 100) return 0.20m;
-            if (cantidad >= 50) return 0.15m;
-            if (cantidad >= 10) return 0.10m;
-            return 0m;
+            decimal descuento = 0m;
+            foreach (var tramo in TramosVolumen)
+            {
+                if (cantidad >= tramo.Desde && tramo.Porcentaje > descuento)
+                {
+                    descuento = tramo.Porcentaje;
+                }
+            }
+            return descuento;
         }
 
         /// <summary>Catalogo de servicios adicionales contratables junto con el equipo.</summary>
