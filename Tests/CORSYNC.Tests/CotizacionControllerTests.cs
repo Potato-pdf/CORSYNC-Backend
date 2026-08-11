@@ -117,17 +117,182 @@ namespace CORSYNC.Tests
             Assert.Equal(248.17m, cotizacion.PrecioUnitario);
             Assert.Equal(24817.00m, cotizacion.Subtotal);
 
-            // 100 unidades: 20% de descuento
-            Assert.Equal(0.20m, cotizacion.DescuentoPorcentaje);
-            Assert.Equal(4963.40m, cotizacion.DescuentoMonto);
+            // 100 unidades: cae en el tramo mas alto vigente (15% desde 15 uds)
+            Assert.Equal(0.15m, cotizacion.DescuentoPorcentaje);
+            Assert.Equal(3722.55m, cotizacion.DescuentoMonto);
 
             // Servicios: soporte premium 49 + API 99 = 148
             Assert.Equal(2, cotizacion.Servicios.Count);
             Assert.Equal(148m, cotizacion.TotalServicios);
 
-            // Base = 24817.00 - 4963.40 + 148.00 = 20001.60
-            Assert.Equal(3200.26m, cotizacion.Impuestos);
-            Assert.Equal(23201.86m, cotizacion.Total);
+            // Base = 24817.00 - 3722.55 + 148.00 = 21242.45
+            Assert.Equal(3398.79m, cotizacion.Impuestos);
+            Assert.Equal(24641.24m, cotizacion.Total);
+        }
+
+        // -----------------------------------------------------------------
+        // Reglas comerciales vigentes: un unico tramo de 10% desde 5 unidades
+        // y otro de 15% desde 15, tope de 100 unidades y una sola cotizacion
+        // por correo de contacto.
+        // -----------------------------------------------------------------
+
+        [Theory]
+        [InlineData(1, 0.00)]
+        [InlineData(4, 0.00)]
+        [InlineData(5, 0.10)]
+        [InlineData(14, 0.10)]
+        [InlineData(15, 0.15)]
+        [InlineData(100, 0.15)]
+        public async Task CalcularCotizacion_AplicaElTramoDeDescuentoDeCadaVolumen(int cantidad, decimal esperado)
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            var request = RequestBase();
+            request.Cantidad = cantidad;
+
+            var actionResult = await controller.CalcularCotizacion(request);
+
+            var okResult = Assert.IsType<OkObjectResult>(actionResult);
+            var cotizacion = Assert.IsType<CotizacionResponse>(okResult.Value);
+            Assert.Equal(esperado, cotizacion.DescuentoPorcentaje);
+        }
+
+        [Fact]
+        public async Task CalcularCotizacion_SegundaSolicitudDelMismoCorreo_DevuelveConflicto()
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            var primera = await controller.CalcularCotizacion(RequestBase());
+            Assert.IsType<OkObjectResult>(primera);
+
+            var segunda = await controller.CalcularCotizacion(RequestBase());
+
+            Assert.IsType<ConflictObjectResult>(segunda);
+            Assert.Single(context.Cotizaciones);
+        }
+
+        [Fact]
+        public async Task CalcularCotizacion_OtroCorreo_SiSeRegistra()
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            await controller.CalcularCotizacion(RequestBase());
+
+            var otra = RequestBase();
+            otra.Email = "otra.empresa@prueba.com";
+            var resultado = await controller.CalcularCotizacion(otra);
+
+            Assert.IsType<OkObjectResult>(resultado);
+            Assert.Equal(2, context.Cotizaciones.Count());
+        }
+
+        [Fact]
+        public async Task CalcularCotizacion_CorreoConEspaciosYaCotizado_TambienSeBloquea()
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            await controller.CalcularCotizacion(RequestBase());
+
+            var conEspacios = RequestBase();
+            conEspacios.Email = "  cliente@prueba.com  ";
+            var resultado = await controller.CalcularCotizacion(conEspacios);
+
+            Assert.IsType<ConflictObjectResult>(resultado);
+        }
+
+        [Fact]
+        public async Task CalcularCotizacion_MismoCorreoEnMayusculas_TambienSeBloquea()
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            await controller.CalcularCotizacion(RequestBase());
+
+            var enMayusculas = RequestBase();
+            enMayusculas.Email = "CLIENTE@PRUEBA.COM";
+            var resultado = await controller.CalcularCotizacion(enMayusculas);
+
+            Assert.IsType<ConflictObjectResult>(resultado);
+            Assert.Single(context.Cotizaciones);
+        }
+
+        [Fact]
+        public void CotizacionRequest_CantidadPorEncimaDelTope_NoEsValida()
+        {
+            var request = RequestBase();
+            request.Cantidad = 101;
+
+            var contexto = new System.ComponentModel.DataAnnotations.ValidationContext(request);
+            var errores = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+            bool valido = System.ComponentModel.DataAnnotations.Validator
+                .TryValidateObject(request, contexto, errores, validateAllProperties: true);
+
+            Assert.False(valido);
+            Assert.Contains(errores, e => e.ErrorMessage!.Contains("entre 1 y 100"));
+        }
+
+        [Fact]
+        public void CotizacionRequest_CantidadEnElTope_EsValida()
+        {
+            var request = RequestBase();
+            request.Cantidad = 100;
+
+            var contexto = new System.ComponentModel.DataAnnotations.ValidationContext(request);
+            var errores = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+            bool valido = System.ComponentModel.DataAnnotations.Validator
+                .TryValidateObject(request, contexto, errores, validateAllProperties: true);
+
+            Assert.True(valido);
+        }
+
+        [Fact]
+        public async Task GetParametros_PublicaLosMismosTramosQueSeAplican()
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            var actionResult = await controller.GetParametros();
+            var okResult = Assert.IsType<OkObjectResult>(actionResult);
+
+            // Se compara contra ReglasComerciales, que es la fuente unica: si el
+            // endpoint volviera a codificar los tramos a mano, esto lo detecta.
+            var tipo = okResult.Value!.GetType();
+            var tramos = tipo.GetProperty("DescuentosVolumen")!.GetValue(okResult.Value);
+            var lista = ((System.Collections.IEnumerable)tramos!).Cast<object>().ToList();
+
+            Assert.Equal(CORSYNC.Core.Interfaces.ReglasComerciales.TramosVolumen.Count, lista.Count);
+
+            var maximo = tipo.GetProperty("CantidadMaxima")!.GetValue(okResult.Value);
+            Assert.Equal(CORSYNC.Core.Interfaces.ReglasComerciales.CantidadMaxima, maximo);
+        }
+
+        [Fact]
+        public async Task GetParametros_PublicaElPrecioRealDeCadaLicencia()
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            var okResult = Assert.IsType<OkObjectResult>(await controller.GetParametros());
+            var licencias = okResult.Value!.GetType().GetProperty("Licencias")!.GetValue(okResult.Value);
+            var lista = ((System.Collections.IEnumerable)licencias!).Cast<object>().ToList();
+
+            Assert.Equal(3, lista.Count);
+
+            foreach (var item in lista)
+            {
+                var t = item.GetType();
+                var clave = (string)t.GetProperty("Clave")!.GetValue(item)!;
+                var precio = (decimal)t.GetProperty("Precio")!.GetValue(item)!;
+                var factor = CORSYNC.Core.Interfaces.ReglasComerciales.FactorLicencia(clave);
+
+                Assert.Equal(
+                    System.Math.Round(PrecioLista * factor, 2, System.MidpointRounding.AwayFromZero),
+                    precio);
+            }
         }
 
         [Fact]
