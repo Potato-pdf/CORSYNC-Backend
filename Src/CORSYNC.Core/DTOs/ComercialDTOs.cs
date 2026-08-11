@@ -29,7 +29,7 @@ namespace CORSYNC.Core.DTOs
         [MaxLength(80)]
         public string Pais { get; set; } = string.Empty;
 
-        [Range(1, 100000, ErrorMessage = "La cantidad debe estar entre 1 y 100000 unidades.")]
+        [Range(1, 100, ErrorMessage = "La cantidad debe estar entre 1 y 100 unidades.")]
         public int Cantidad { get; set; } = 1;
 
         /// <summary>"Individual", "Corporativa" o "Enterprise".</summary>
