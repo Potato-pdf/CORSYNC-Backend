@@ -47,6 +47,19 @@ namespace CORSYNC.Api.Controllers
                 return BadRequest("Debes aceptar la política de privacidad para solicitar una cotización.");
             }
 
+            // Una sola cotizacion por empresa, identificada por el correo de
+            // contacto: el campo Empresa es opcional y el correo siempre viene.
+            // Se compara en minusculas a proposito: InMemory distingue
+            // mayusculas y SQL Server no, y la regla debe ser la misma en ambos.
+            var correo = request.Email.Trim();
+            var correoNormalizado = correo.ToLowerInvariant();
+            bool yaCotizo = await _context.Cotizaciones
+                .AnyAsync(c => c.Email.ToLower() == correoNormalizado);
+            if (yaCotizo)
+            {
+                return Conflict("Ya existe una cotización registrada para este correo. Escríbenos y damos seguimiento a la que ya tienes.");
+            }
+
             var costo = await _costeo.CalcularCostoProductoAsync(ProductoCorsyncId);
             if (costo == null)
             {
@@ -166,12 +179,16 @@ namespace CORSYNC.Api.Controllers
             {
                 Producto = costo.Producto,
                 costo.PrecioLista,
-                Licencias = new[]
+                // Licencias y tramos se derivan de ReglasComerciales para que lo
+                // que anuncia el formulario no pueda separarse de lo que se cobra.
+                Licencias = ReglasComerciales.Licencias.Select(l => new
                 {
-                    new { Clave = "Individual", Nombre = "Individual", Factor = 1.00m, Precio = Math.Round(costo.PrecioLista, 2), Descripcion = "Para uso personal. Una pulsera y una cuenta en la app." },
-                    new { Clave = "Corporativa", Nombre = "Corporativa", Factor = 0.90m, Precio = Math.Round(costo.PrecioLista * 0.90m, 2), Descripcion = "Para programas de bienestar. Panel de equipo y facturación." },
-                    new { Clave = "Enterprise", Nombre = "Enterprise", Factor = 0.83m, Precio = Math.Round(costo.PrecioLista * 0.83m, 2), Descripcion = "Para distribuidores y despliegues grandes. Precio de mayoreo." }
-                },
+                    l.Clave,
+                    l.Nombre,
+                    Factor = l.Factor,
+                    Precio = Math.Round(costo.PrecioLista * l.Factor, 2, MidpointRounding.AwayFromZero),
+                    l.Descripcion
+                }),
                 Servicios = ReglasComerciales.Servicios.Select(s => new
                 {
                     Clave = s.Key,
@@ -179,12 +196,12 @@ namespace CORSYNC.Api.Controllers
                     s.Value.Precio,
                     s.Value.Detalle
                 }),
-                DescuentosVolumen = new[]
+                DescuentosVolumen = ReglasComerciales.TramosVolumen.Select(t => new
                 {
-                    new { Desde = 10, Porcentaje = 0.10m },
-                    new { Desde = 50, Porcentaje = 0.15m },
-                    new { Desde = 100, Porcentaje = 0.20m }
-                },
+                    t.Desde,
+                    t.Porcentaje
+                }),
+                CantidadMaxima = ReglasComerciales.CantidadMaxima,
                 TasaImpuesto = ReglasComerciales.TasaImpuesto
             });
         }
