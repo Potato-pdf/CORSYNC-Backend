@@ -182,7 +182,7 @@ IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Cotizacion
     ALTER TABLE Cotizaciones ADD FechaVigencia DATETIME2 NOT NULL DEFAULT GETUTCDATE();
 --BATCH--
 -- Ancho y Alto pertenecian al producto anterior (espejo). Se vuelven opcionales
--- para que las cotizaciones de la pulsera no tengan que informarlos.
+-- para que las cotizaciones de la manga no tengan que informarlos.
 IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Cotizaciones') AND name = 'Ancho' AND is_nullable = 0)
     ALTER TABLE Cotizaciones ALTER COLUMN Ancho DECIMAL(18,2) NULL;
 IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Cotizaciones') AND name = 'Alto' AND is_nullable = 0)
@@ -328,7 +328,7 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'EspecificacionesProductos'
         // los caracteres acentuados o la ñ se pierden al guardarla en NVARCHAR.
         private const string SeedSql = @"
 -- ============================================================
--- Catalogo base de ThinkUp: un unico producto, la pulsera CORSYNC
+-- Catalogo base de ThinkUp: un unico producto, la manga CORSYNC
 -- ============================================================
 
 -- Proveedores
@@ -350,17 +350,17 @@ DECLARE @provSilicon INT = (SELECT TOP 1 Id FROM Proveedores WHERE Nombre = N'Si
 DECLARE @provPcb INT = (SELECT TOP 1 Id FROM Proveedores WHERE Nombre = N'NovaPCB Manufacturing');
 DECLARE @provBat INT = (SELECT TOP 1 Id FROM Proveedores WHERE Nombre = N'Baterías Litio del Norte');
 
--- Materia prima de la pulsera. Los Ids 1 a 5 provienen del catalogo anterior
+-- Materia prima de la manga. Los Ids 1 a 5 provienen del catalogo anterior
 -- (componentes de espejo) y se reconvierten; el resto se da de alta.
-UPDATE MateriasPrimas SET Nombre = N'Correa de silicona hipoalergénica', Descripcion = N'Correa médica de silicona con broche de acero, talla ajustable.', CostoUnidad = 3.10, UnidadMedida = N'pieza', Stock = 1200, StockMinimo = 300, ProveedorId = @provSilicon, Activo = 1 WHERE Id = 1;
-UPDATE MateriasPrimas SET Nombre = N'Carcasa de aluminio anodizado 6061', Descripcion = N'Cuerpo mecanizado CNC con acabado anodizado mate.', CostoUnidad = 9.80, UnidadMedida = N'pieza', Stock = 800, StockMinimo = 200, ProveedorId = @provSilicon, Activo = 1 WHERE Id = 2;
-UPDATE MateriasPrimas SET Nombre = N'Sensor GSR de respuesta galvánica', Descripcion = N'Módulo de conductancia de la piel para medición de activación fisiológica.', CostoUnidad = 6.50, UnidadMedida = N'pieza', Stock = 640, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 3;
-UPDATE MateriasPrimas SET Nombre = N'Sensor MAX30102 (PPG)', Descripcion = N'Sensor óptico de fotopletismografía para ritmo cardíaco y HRV.', CostoUnidad = 8.00, UnidadMedida = N'pieza', Stock = 700, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 4;
-UPDATE MateriasPrimas SET Nombre = N'Módulo ESP32-C3 (MCU + BLE 5.2)', Descripcion = N'Microcontrolador con Bluetooth Low Energy y Wi-Fi integrado.', CostoUnidad = 12.00, UnidadMedida = N'pieza', Stock = 520, StockMinimo = 120, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 5;
+UPDATE MateriasPrimas SET Nombre = N'Tela elástica para manga', Descripcion = N'Tejido elástico hipoalergénico que sostiene los sensores contra el antebrazo.', CostoUnidad = 3.10, UnidadMedida = N'pieza', Stock = 1200, StockMinimo = 300, ProveedorId = @provSilicon, Activo = 1 WHERE Id = 1;
+UPDATE MateriasPrimas SET Nombre = N'Carcasa de plástico impresa en 3D', Descripcion = N'Carcasa impresa en 3D en filamento plástico, diseñada a medida para alojar los sensores.', CostoUnidad = 9.80, UnidadMedida = N'pieza', Stock = 800, StockMinimo = 200, ProveedorId = @provSilicon, Activo = 1 WHERE Id = 2;
+UPDATE MateriasPrimas SET Nombre = N'Sensor MCU-6701 (GSR)', Descripcion = N'Módulo de conductancia de la piel para medición de activación fisiológica.', CostoUnidad = 6.50, UnidadMedida = N'pieza', Stock = 640, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 3;
+UPDATE MateriasPrimas SET Nombre = N'Sensor MAX30102', Descripcion = N'Sensor de ritmo cardíaco y HRV.', CostoUnidad = 8.00, UnidadMedida = N'pieza', Stock = 700, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 4;
+UPDATE MateriasPrimas SET Nombre = N'Módulo ESP32 (MCU + Wi-Fi)', Descripcion = N'Microcontrolador con Wi-Fi y Bluetooth integrados.', CostoUnidad = 12.00, UnidadMedida = N'pieza', Stock = 520, StockMinimo = 120, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 5;
 
-IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Batería LiPo 300 mAh')
+IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Pila recargable de 9V')
     INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
-    VALUES (N'Batería LiPo 300 mAh', N'Celda de polímero de litio con protección de sobrecarga.', 4.20, N'pieza', 900, 250, @provBat, 1);
+    VALUES (N'Pila recargable de 9V', N'Pila recargable de 9V que alimenta la manga durante la sesión de medición.', 4.20, N'pieza', 900, 250, @provBat, 1);
 IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Electrodos de acero inoxidable 316L')
     INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
     VALUES (N'Electrodos de acero inoxidable 316L', N'Par de electrodos de contacto para la lectura galvánica.', 2.40, N'par', 1500, 300, @provSilicon, 1);
@@ -374,7 +374,7 @@ IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Empaque premium y m
     INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
     VALUES (N'Empaque premium y manual impreso', N'Caja rígida, inserto de espuma y guía de inicio rápido.', 2.90, N'kit', 1000, 250, @provSilicon, 1);
 
--- Producto unico: la pulsera CORSYNC.
+-- Producto unico: la manga CORSYNC.
 -- Costo primo objetivo: materia prima 61.80 + mano de obra 18.20 = 80.00
 -- Gastos indirectos 25% = 20.00 -> costo unitario 100.00
 -- Margen 199% -> precio de lista 299.00
@@ -382,24 +382,24 @@ IF NOT EXISTS (SELECT 1 FROM Productos WHERE Nombre = N'CORSYNC')
     INSERT INTO Productos (Nombre, Descripcion, DescripcionLarga, ManoObraUnitaria, OverheadPorcentaje, MargenUtilidad, Activo, FechaCreacion)
     VALUES (
         N'CORSYNC',
-        N'Pulsera biométrica que mide tu actividad galvánica y tu ritmo cardíaco para generar tu aura digital.',
-        N'CORSYNC es una pulsera que lee de forma continua dos señales de tu cuerpo: la actividad electrodermal de tu piel, mediante un sensor de respuesta galvánica, y tu ritmo cardíaco, mediante un sensor óptico de fotopletismografía. Ambas señales viajan por Bluetooth a la aplicación móvil, donde se traducen en un aura: una figura viva de color y movimiento que refleja tu estado en ese momento. El aura se puede guardar, revisar en tu historial y compartir con las personas que elijas.',
+        N'Manga biométrica que mide tu actividad galvánica y tu ritmo cardíaco para generar tu aura digital.',
+        N'CORSYNC es una manga que se coloca en el antebrazo y lee de forma continua dos señales de tu cuerpo: la actividad electrodermal de tu piel, mediante el sensor MCU-6701, y tu ritmo cardíaco, mediante el sensor MAX30102. Ambas señales viajan por Wi-Fi a la aplicación móvil, donde se traducen en un aura: una representación de color que refleja tu estado en ese momento. El aura se puede guardar, revisar en tu historial y compartir con las personas que elijas.',
         18.20, 0.25, 1.99, 1, GETUTCDATE());
 
 DECLARE @productoId INT = (SELECT TOP 1 Id FROM Productos WHERE Nombre = N'CORSYNC');
 
--- Explosion de materiales: una pieza de cada insumo por pulsera.
+-- Explosion de materiales: una pieza de cada insumo por manga.
 DELETE FROM RecetasProductos WHERE ProductoId = @productoId;
 INSERT INTO RecetasProductos (ProductoId, NombreProducto, MateriaPrimaId, CantidadRequerida, MermaPorcentaje)
 SELECT @productoId, N'CORSYNC', Id, 1, 0
 FROM MateriasPrimas
 WHERE Nombre IN (
-    N'Correa de silicona hipoalergénica',
-    N'Carcasa de aluminio anodizado 6061',
-    N'Sensor GSR de respuesta galvánica',
-    N'Sensor MAX30102 (PPG)',
-    N'Módulo ESP32-C3 (MCU + BLE 5.2)',
-    N'Batería LiPo 300 mAh',
+    N'Tela elástica para manga',
+    N'Carcasa de plástico impresa en 3D',
+    N'Sensor MCU-6701 (GSR)',
+    N'Sensor MAX30102',
+    N'Módulo ESP32 (MCU + Wi-Fi)',
+    N'Pila recargable de 9V',
     N'Electrodos de acero inoxidable 316L',
     N'PCB flexible de 4 capas',
     N'Cargador magnético inalámbrico',
@@ -411,21 +411,21 @@ DELETE FROM RecetasProductos WHERE ProductoId <> @productoId;
 -- Documentacion del producto
 IF NOT EXISTS (SELECT 1 FROM DocumentosProductos WHERE ProductoId = @productoId)
     INSERT INTO DocumentosProductos (ProductoId, Titulo, Descripcion, Tipo, Url, Peso, FechaPublicacion) VALUES
-    (@productoId, N'Manual de usuario CORSYNC', N'Guía completa de uso, cuidados y solución de problemas de la pulsera.', N'Manual', '/docs/corsync-manual-usuario.pdf', '4.2 MB', GETUTCDATE()),
-    (@productoId, N'Guía de inicio rápido', N'Primeros pasos: carga, vinculación por Bluetooth y primera lectura de aura.', N'Guia', '/docs/corsync-inicio-rapido.pdf', '1.1 MB', GETUTCDATE()),
+    (@productoId, N'Manual de usuario CORSYNC', N'Guía completa de uso, cuidados y solución de problemas de la manga.', N'Manual', '/docs/corsync-manual-usuario.pdf', '4.2 MB', GETUTCDATE()),
+    (@productoId, N'Guía de inicio rápido', N'Primeros pasos: encendido, conexión Wi-Fi y primera lectura de aura.', N'Guia', '/docs/corsync-inicio-rapido.pdf', '1.1 MB', GETUTCDATE()),
     (@productoId, N'Ficha técnica', N'Especificaciones de sensores, autonomía, materiales y conectividad.', N'FichaTecnica', '/docs/corsync-ficha-tecnica.pdf', '820 KB', GETUTCDATE()),
     (@productoId, N'Póliza de garantía', N'Cobertura de 2 años por defectos de fabricación y proceso de devolución.', N'Garantia', '/docs/corsync-garantia.pdf', '310 KB', GETUTCDATE());
 
 -- Preguntas frecuentes
 IF NOT EXISTS (SELECT 1 FROM PreguntasFrecuentes)
     INSERT INTO PreguntasFrecuentes (Pregunta, Respuesta, Categoria, Orden, Activo) VALUES
-    (N'¿Qué sensores incluye CORSYNC?', N'CORSYNC integra dos sensores: uno de respuesta galvánica de la piel (GSR), que mide la conductancia eléctrica de tu piel, y un sensor óptico de fotopletismografía (PPG) que registra tu ritmo cardíaco. La combinación de ambas señales es la que alimenta el cálculo de tu aura.', N'Producto', 1, 1),
-    (N'¿Cómo se genera el aura?', N'La pulsera envía las lecturas de actividad galvánica y ritmo cardíaco a la aplicación móvil. Ahí se procesan en conjunto y se traducen en color, intensidad y movimiento. Un pulso elevado con alta conductancia produce un aura cálida y agitada; un pulso bajo y estable produce tonos fríos y un movimiento sereno.', N'Producto', 2, 1),
-    (N'¿Cuánto dura la batería y cómo se carga?', N'La batería de 300 mAh ofrece hasta 7 días de uso continuo. Se carga con la base magnética inalámbrica incluida en la caja y alcanza el 100% en aproximadamente 1.5 horas.', N'Producto', 3, 1),
-    (N'¿Es resistente al agua?', N'Sí. CORSYNC cuenta con certificación IP68: resiste polvo y puede sumergirse hasta 1.5 metros durante 30 minutos. Puedes usarla en la ducha o al nadar en superficie.', N'Producto', 4, 1),
-    (N'¿Es compatible con iOS y Android?', N'Sí. La aplicación CORSYNC está disponible para iOS 14 o superior y Android 11 o superior, y se conecta a la pulsera por Bluetooth Low Energy 5.2.', N'App móvil', 5, 1),
+    (N'¿Qué sensores incluye CORSYNC?', N'CORSYNC integra dos sensores: el MCU-6701, que mide la conductancia eléctrica de tu piel, y el MAX30102, que registra tu ritmo cardíaco. La combinación de ambas señales es la que alimenta el cálculo de tu aura.', N'Producto', 1, 1),
+    (N'¿Cómo se genera el aura?', N'La manga envía las lecturas de actividad galvánica y ritmo cardíaco a la aplicación móvil. Ahí se procesan en conjunto y se traducen en color, intensidad y movimiento. Un pulso elevado con alta conductancia produce un aura cálida y agitada; un pulso bajo y estable produce tonos fríos y un movimiento sereno.', N'Producto', 2, 1),
+    (N'¿Cuánto dura la batería?', N'CORSYNC funciona con una pila recargable de 9V que ofrece hasta 5 horas de medición continua. Al agotarse se recarga y la manga vuelve a estar lista para la siguiente sesión.', N'Producto', 3, 1),
+    (N'¿Cómo se coloca la manga?', N'CORSYNC se desliza sobre el antebrazo hasta que los sensores queden en contacto directo con la piel. No lleva correa ni broche: la propia manga la mantiene en su sitio durante la lectura.', N'Producto', 4, 1),
+    (N'¿Es compatible con iOS y Android?', N'Sí. La aplicación CORSYNC está disponible para iOS 14 o superior y Android 11 o superior, y recibe las lecturas por Wi-Fi.', N'App móvil', 5, 1),
     (N'¿Puedo compartir mi aura con otras personas?', N'Sí. Desde la aplicación puedes compartir tu aura en tiempo real con las personas que elijas o publicarla en redes sociales. También puedes guardar tu historial y ver cómo ha evolucionado tu aura a lo largo del tiempo.', N'App móvil', 6, 1),
-    (N'¿Cuál es la garantía del producto?', N'Todas las pulseras incluyen 2 años de garantía por defectos de fabricación. Además ofrecemos 30 días de garantía de satisfacción: si el producto no te convence, te devolvemos tu dinero.', N'Soporte', 7, 1),
+    (N'¿Cuál es la garantía del producto?', N'Todas las mangas incluyen 2 años de garantía por defectos de fabricación. Además ofrecemos 30 días de garantía de satisfacción: si el producto no te convence, te devolvemos tu dinero.', N'Soporte', 7, 1),
     (N'¿Ofrecen descuentos por volumen?', N'Sí. Aplicamos descuentos progresivos sobre el subtotal: 10% a partir de 10 unidades, 15% a partir de 50 y 20% a partir de 100. Además existen precios preferentes por tipo de licencia Corporativa y Enterprise. Puedes calcular tu precio exacto en el formulario de cotización.', N'Ventas', 8, 1);
 
 -- Valoraciones de ejemplo ya aprobadas, para que la seccion publica no nazca vacia.
@@ -436,14 +436,14 @@ IF NOT EXISTS (SELECT 1 FROM Comentarios WHERE Aprobado = 1)
     (N'Sofía T.', 'sofia.t@example.com', N'La relación calidad precio es excelente y el servicio al cliente respondió en menos de un día cuando tuve dudas con la vinculación.', 5, @productoId, 1, N'Gracias Sofía. Tu opinión nos motiva a seguir mejorando. - ThinkUp', DATEADD(day, -28, GETUTCDATE()), DATEADD(day, -30, GETUTCDATE())),
     (N'Diego M.', 'diego.m@example.com', N'Desde que uso CORSYNC entiendo mejor mis picos de estrés. Ver la lectura galvánica junto al pulso cambia cómo interpreto mi día.', 5, @productoId, 1, NULL, NULL, DATEADD(day, -21, GETUTCDATE())),
     (N'Valentina P.', 'valentina.p@example.com', N'Buen producto, aunque la batería me dura cinco días y no siete. Espero que lo mejoren con una actualización.', 3, @productoId, 1, N'Gracias por el reporte Valentina. El equipo está optimizando el consumo del sensor GSR. - ThinkUp', DATEADD(day, -12, GETUTCDATE()), DATEADD(day, -14, GETUTCDATE())),
-    (N'Andrea L.', 'andrea.l@example.com', N'Compramos 25 pulseras para el programa de bienestar de la empresa. El proceso de cotización fue claro y el descuento por volumen se aplicó sin problema.', 5, @productoId, 1, NULL, NULL, DATEADD(day, -6, GETUTCDATE()));
+    (N'Andrea L.', 'andrea.l@example.com', N'Compramos 25 mangas para el programa de bienestar de la empresa. El proceso de cotización fue claro y el descuento por volumen se aplicó sin problema.', 5, @productoId, 1, NULL, NULL, DATEADD(day, -6, GETUTCDATE()));
 
 -- Galeria del producto. Apuntan a wwwroot/img/producto, que viaja con el
 -- repositorio; NombreArchivo queda vacio a proposito para que borrarlas desde
 -- el panel no intente eliminar un archivo versionado.
 IF NOT EXISTS (SELECT 1 FROM ImagenesProductos WHERE ProductoId = @productoId)
     INSERT INTO ImagenesProductos (ProductoId, Url, Titulo, Descripcion, Orden, NombreArchivo, TamanoBytes, FechaSubida) VALUES
-    (@productoId, N'/img/producto/01-escaneo-en-vivo.jpg', N'Escaneo en vivo', N'La pulsera transmite el pulso y la conductancia de la piel en tiempo real mientras dura la lectura.', 1, N'', 0, GETUTCDATE()),
+    (@productoId, N'/img/producto/01-escaneo-en-vivo.jpg', N'Escaneo en vivo', N'La manga transmite el pulso y la conductancia de la piel en tiempo real mientras dura la lectura.', 1, N'', 0, GETUTCDATE()),
     (@productoId, N'/img/producto/02-tu-aura-del-dia.jpg', N'Tu aura del día', N'Las dos señales se cruzan y se traducen en un color con su interpretación y tus valores del momento.', 2, N'', 0, GETUTCDATE()),
     (@productoId, N'/img/producto/03-diario-energetico.jpg', N'Diario energético', N'Historial completo de lecturas con su aura, su pulso y su nivel de estrés.', 3, N'', 0, GETUTCDATE()),
     (@productoId, N'/img/producto/04-analisis-de-tendencias.jpg', N'Análisis de tendencias', N'Evolución del pulso y del estrés por día, semana o mes, con la distribución de auras.', 4, N'', 0, GETUTCDATE()),
@@ -453,31 +453,28 @@ IF NOT EXISTS (SELECT 1 FROM ImagenesProductos WHERE ProductoId = @productoId)
 -- Caracteristicas destacadas de la ficha comercial.
 IF NOT EXISTS (SELECT 1 FROM CaracteristicasProductos WHERE ProductoId = @productoId)
     INSERT INTO CaracteristicasProductos (ProductoId, Texto, Icono, Orden) VALUES
-    (@productoId, N'Sensor de respuesta galvánica de la piel (GSR)', N'activity', 1),
-    (@productoId, N'Sensor óptico de ritmo cardíaco (PPG)', N'heart-pulse', 2),
+    (@productoId, N'Sensor MCU-6701 de respuesta galvánica de la piel', N'activity', 1),
+    (@productoId, N'Sensor MAX30102 de ritmo cardíaco', N'heart-pulse', 2),
     (@productoId, N'Generación de aura en tiempo real', N'circle-half', 3),
     (@productoId, N'Aplicación móvil para iOS y Android', N'phone', 4),
-    (@productoId, N'Bluetooth Low Energy 5.2', N'bluetooth', 5),
-    (@productoId, N'Hasta 7 días de autonomía', N'battery-full', 6),
-    (@productoId, N'Resistencia al agua IP68', N'droplet', 7),
+    (@productoId, N'Conexión Wi-Fi mediante ESP32', N'wifi', 5),
+    (@productoId, N'Hasta 5 horas de medición continua con una carga', N'battery-full', 6),
+    (@productoId, N'Carcasa fabricada por impresión 3D', N'box', 7),
     (@productoId, N'Compartir el aura en vivo', N'share', 8);
 
 -- Ficha tecnica agrupada por bloque.
 IF NOT EXISTS (SELECT 1 FROM EspecificacionesProductos WHERE ProductoId = @productoId)
     INSERT INTO EspecificacionesProductos (ProductoId, Grupo, Campo, Valor, Orden) VALUES
-    (@productoId, N'Físicas', N'Dimensiones', N'40 × 34 × 9,5 mm', 1),
-    (@productoId, N'Físicas', N'Peso', N'31 g con correa', 2),
-    (@productoId, N'Físicas', N'Carcasa', N'Aluminio anodizado 6061', 3),
-    (@productoId, N'Físicas', N'Correa', N'Silicona médica hipoalergénica', 4),
-    (@productoId, N'Físicas', N'Resistencia', N'IP68 · 1,5 m durante 30 min', 5),
-    (@productoId, N'Sensores', N'Conductancia', N'GSR con electrodos de acero 316L', 6),
-    (@productoId, N'Sensores', N'Pulso', N'MAX30102, fotopletismografía', 7),
-    (@productoId, N'Sensores', N'Frecuencia de muestreo', N'25 Hz', 8),
+    -- Dimensiones, Correa, Resistencia y Carga se retiraron: no aplican a la
+    -- manga o siguen pendientes del dato de fabricacion.
+    (@productoId, N'Físicas', N'Peso', N'210 g', 2),
+    (@productoId, N'Físicas', N'Carcasa', N'Plástico de impresión 3D', 3),
+    (@productoId, N'Sensores', N'Conductancia', N'MCU-6701', 6),
+    (@productoId, N'Sensores', N'Pulso', N'MAX30102', 7),
     (@productoId, N'Sensores', N'Rango de pulso', N'30 – 220 BPM', 9),
-    (@productoId, N'Sistema', N'Procesador', N'ESP32-C3 con BLE 5.2 y Wi-Fi', 10),
-    (@productoId, N'Sistema', N'Batería', N'LiPo 300 mAh', 11),
-    (@productoId, N'Sistema', N'Autonomía', N'Hasta 7 días de uso continuo', 12),
-    (@productoId, N'Sistema', N'Carga', N'Base magnética inalámbrica · 1,5 h', 13),
+    (@productoId, N'Sistema', N'Procesador', N'ESP32 con Wi-Fi y Bluetooth', 10),
+    (@productoId, N'Sistema', N'Batería', N'Pila recargable de 9V', 11),
+    (@productoId, N'Sistema', N'Autonomía', N'Hasta 5 horas de uso continuo', 12),
     (@productoId, N'Sistema', N'Compatibilidad', N'iOS 14+ · Android 11+', 14);
 
 -- Compra de demostracion para el cliente de prueba.
