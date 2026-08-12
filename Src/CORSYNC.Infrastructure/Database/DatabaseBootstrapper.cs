@@ -357,15 +357,18 @@ DECLARE @provBat INT = (SELECT TOP 1 Id FROM Proveedores WHERE Nombre = N'Bater�
 UPDATE MateriasPrimas SET Nombre = N'Carcasa impresa en 3D', Descripcion = N'Carcasa impresa en 3D en filamento PLA, diseñada a medida para alojar los sensores.', CostoUnidad = 100.00, UnidadMedida = N'pieza', Stock = 800, StockMinimo = 200, ProveedorId = @provSilicon, Activo = 1 WHERE Id = 1;
 UPDATE MateriasPrimas SET Nombre = N'Sensor MCU-6701 (GSR)', Descripcion = N'Módulo de conductancia de la piel para medición de activación fisiológica.', CostoUnidad = 259.96, UnidadMedida = N'pieza', Stock = 640, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 2;
 UPDATE MateriasPrimas SET Nombre = N'Sensor MAX30102', Descripcion = N'Sensor de ritmo cardíaco y HRV.', CostoUnidad = 64.24, UnidadMedida = N'pieza', Stock = 700, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 3;
-UPDATE MateriasPrimas SET Nombre = N'Módulo ESP32 (MCU + Wi-Fi)', Descripcion = N'Microcontrolador con Wi-Fi y Bluetooth integrados.', CostoUnidad = 129.99, UnidadMedida = N'pieza', Stock = 520, StockMinimo = 120, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 4;
+UPDATE MateriasPrimas SET Nombre = N'Módulo ESP32 (MCU + Wi-Fi)', Descripcion = N'Microcontrolador con Wi-Fi integrado; es el que transmite las lecturas a la app.', CostoUnidad = 129.99, UnidadMedida = N'pieza', Stock = 520, StockMinimo = 120, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 4;
 UPDATE MateriasPrimas SET Nombre = N'Batería recargable de 9V (500 mAh)', Descripcion = N'Batería recargable de 9V y 500 mAh que alimenta la manga durante la sesión de medición.', CostoUnidad = 150.00, UnidadMedida = N'pieza', Stock = 900, StockMinimo = 250, ProveedorId = @provBat, Activo = 1 WHERE Id = 5;
 
 IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Módulo indicador de carga XW228DKFR4')
     INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
     VALUES (N'Módulo indicador de carga XW228DKFR4', N'Módulo indicador del nivel de carga de la batería.', 80.00, N'pieza', 600, 150, @provPcb, 1);
-IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Regulador de voltaje')
+-- El regulador se sembro sin modelo en una version anterior; se renombra en su
+-- lugar para no insertar un duplicado con el nombre nuevo.
+UPDATE MateriasPrimas SET Nombre = N'Regulador de voltaje LM2596' WHERE Nombre = N'Regulador de voltaje';
+IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Regulador de voltaje LM2596')
     INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
-    VALUES (N'Regulador de voltaje', N'Regulador que estabiliza la salida de la batería de 9V hacia los sensores y el MCU.', 95.60, N'pieza', 600, 150, @provPcb, 1);
+    VALUES (N'Regulador de voltaje LM2596', N'Regulador que estabiliza la salida de la batería de 9V hacia los sensores y el MCU.', 95.60, N'pieza', 600, 150, @provPcb, 1);
 
 -- Insumos que salieron del diseño de la manga. Los renglones 1 a 5 ya fueron
 -- reconvertidos arriba, asi que aqui solo caen los que quedaron sueltos del
@@ -418,7 +421,7 @@ WHERE Nombre IN (
     N'Módulo ESP32 (MCU + Wi-Fi)',
     N'Batería recargable de 9V (500 mAh)',
     N'Módulo indicador de carga XW228DKFR4',
-    N'Regulador de voltaje');
+    N'Regulador de voltaje LM2596');
 
 -- Recetas del producto anterior (espejo) que ya no forman parte del catalogo.
 DELETE FROM RecetasProductos WHERE ProductoId <> @productoId;
@@ -436,12 +439,27 @@ IF NOT EXISTS (SELECT 1 FROM PreguntasFrecuentes)
     INSERT INTO PreguntasFrecuentes (Pregunta, Respuesta, Categoria, Orden, Activo) VALUES
     (N'¿Qué sensores incluye CORSYNC?', N'CORSYNC integra dos sensores: el MCU-6701, que mide la conductancia eléctrica de tu piel, y el MAX30102, que registra tu ritmo cardíaco. La combinación de ambas señales es la que alimenta el cálculo de tu aura.', N'Producto', 1, 1),
     (N'¿Cómo se genera el aura?', N'La manga envía las lecturas de actividad galvánica y ritmo cardíaco a la aplicación móvil. Ahí se procesan en conjunto y se traducen en color, intensidad y movimiento. Un pulso elevado con alta conductancia produce un aura cálida y agitada; un pulso bajo y estable produce tonos fríos y un movimiento sereno.', N'Producto', 2, 1),
-    (N'¿Cuánto dura la batería?', N'CORSYNC funciona con una pila recargable de 9V que ofrece hasta 5 horas de medición continua. Al agotarse se recarga y la manga vuelve a estar lista para la siguiente sesión.', N'Producto', 3, 1),
+    (N'¿Cuánto dura la batería?', N'CORSYNC funciona con una batería recargable de 9V y 500 mAh, con un módulo indicador que muestra el nivel de carga restante. Al agotarse se recarga y la manga vuelve a estar lista para la siguiente sesión. La duración por carga depende del uso; publicaremos la cifra en cuanto termine la caracterización del prototipo.', N'Producto', 3, 1),
     (N'¿Cómo se coloca la manga?', N'CORSYNC se desliza sobre el antebrazo hasta que los sensores queden en contacto directo con la piel. No lleva correa ni broche: la propia manga la mantiene en su sitio durante la lectura.', N'Producto', 4, 1),
     (N'¿Es compatible con iOS y Android?', N'Sí. La aplicación CORSYNC está disponible para iOS 14 o superior y Android 11 o superior, y recibe las lecturas por Wi-Fi.', N'App móvil', 5, 1),
     (N'¿Puedo compartir mi aura con otras personas?', N'Sí. Desde la aplicación puedes compartir tu aura en tiempo real con las personas que elijas o publicarla en redes sociales. También puedes guardar tu historial y ver cómo ha evolucionado tu aura a lo largo del tiempo.', N'App móvil', 6, 1),
     (N'¿Cuál es la garantía del producto?', N'Todas las mangas incluyen 2 años de garantía por defectos de fabricación. Además ofrecemos 30 días de garantía de satisfacción: si el producto no te convence, te devolvemos tu dinero.', N'Soporte', 7, 1),
-    (N'¿Ofrecen descuentos por volumen?', N'Sí. Aplicamos descuentos progresivos sobre el subtotal: 10% a partir de 10 unidades, 15% a partir de 50 y 20% a partir de 100. Además existen precios preferentes por tipo de licencia Corporativa y Enterprise. Puedes calcular tu precio exacto en el formulario de cotización.', N'Ventas', 8, 1);
+    (N'¿Ofrecen descuentos por volumen?', N'Sí. Aplicamos descuentos progresivos sobre el subtotal: 10% a partir de 5 unidades y 15% a partir de 15. Además existen precios preferentes por tipo de licencia Corporativa y Enterprise. El cotizador en línea admite hasta 100 unidades; si necesitas más, escríbenos y lo vemos contigo. Puedes calcular tu precio exacto en el formulario de cotización.', N'Ventas', 8, 1);
+
+-- Las preguntas frecuentes no se reescriben en cada arranque porque el administrador
+-- las edita desde el panel. Estas dos si, porque anunciaban datos que el sistema no
+-- cumple: se corrigen en su lugar sin tocar las demas.
+
+-- Describia la pila anterior y una autonomia que ya no sostenemos.
+UPDATE PreguntasFrecuentes
+SET Respuesta = N'CORSYNC funciona con una batería recargable de 9V y 500 mAh, con un módulo indicador que muestra el nivel de carga restante. Al agotarse se recarga y la manga vuelve a estar lista para la siguiente sesión. La duración por carga depende del uso; publicaremos la cifra en cuanto termine la caracterización del prototipo.'
+WHERE Pregunta = N'¿Cuánto dura la batería?';
+
+-- Prometia un 20% que el cotizador nunca aplica y pedia mas unidades de las
+-- necesarias. Los tramos reales viven en ReglasComerciales.TramosVolumen.
+UPDATE PreguntasFrecuentes
+SET Respuesta = N'Sí. Aplicamos descuentos progresivos sobre el subtotal: 10% a partir de 5 unidades y 15% a partir de 15. Además existen precios preferentes por tipo de licencia Corporativa y Enterprise. El cotizador en línea admite hasta 100 unidades; si necesitas más, escríbenos y lo vemos contigo. Puedes calcular tu precio exacto en el formulario de cotización.'
+WHERE Pregunta = N'¿Ofrecen descuentos por volumen?';
 
 -- Valoraciones de ejemplo ya aprobadas, para que la seccion publica no nazca vacia.
 IF NOT EXISTS (SELECT 1 FROM Comentarios WHERE Aprobado = 1)
@@ -465,32 +483,39 @@ IF NOT EXISTS (SELECT 1 FROM ImagenesProductos WHERE ProductoId = @productoId)
     (@productoId, N'/img/producto/05-desafios.jpg', N'Desafíos', N'Misiones que acompañan el hábito de medición y celebran la constancia.', 5, N'', 0, GETUTCDATE()),
     (@productoId, N'/img/producto/06-perfil-y-ajustes.jpg', N'Perfil y ajustes', N'Resumen personal, aura dominante y configuración del dispositivo.', 6, N'', 0, GETUTCDATE());
 
--- Caracteristicas destacadas de la ficha comercial.
-IF NOT EXISTS (SELECT 1 FROM CaracteristicasProductos WHERE ProductoId = @productoId)
-    INSERT INTO CaracteristicasProductos (ProductoId, Texto, Icono, Orden) VALUES
+-- Caracteristicas destacadas de la ficha comercial. Se reescriben en cada arranque
+-- (igual que la receta) para que una base creada con la ficha anterior quede
+-- alineada con el seed de EF; si solo se insertaran cuando la tabla esta vacia,
+-- los textos viejos se quedarian ahi para siempre.
+DELETE FROM CaracteristicasProductos WHERE ProductoId = @productoId;
+INSERT INTO CaracteristicasProductos (ProductoId, Texto, Icono, Orden) VALUES
     (@productoId, N'Sensor MCU-6701 de respuesta galvánica de la piel', N'activity', 1),
     (@productoId, N'Sensor MAX30102 de ritmo cardíaco', N'heart-pulse', 2),
     (@productoId, N'Generación de aura en tiempo real', N'circle-half', 3),
     (@productoId, N'Aplicación móvil para iOS y Android', N'phone', 4),
     (@productoId, N'Conexión Wi-Fi mediante ESP32', N'wifi', 5),
-    (@productoId, N'Hasta 5 horas de medición continua con una carga', N'battery-full', 6),
-    (@productoId, N'Carcasa fabricada por impresión 3D', N'box', 7),
-    (@productoId, N'Compartir el aura en vivo', N'share', 8);
+    (@productoId, N'Batería recargable de 9V y 500 mAh, con indicador de nivel de carga XW228DKFR4', N'battery-full', 6),
+    (@productoId, N'Regulador de voltaje LM2596 que estabiliza la alimentación de los sensores', N'lightning-charge', 7),
+    (@productoId, N'Carcasa impresa en 3D en filamento PLA', N'box', 8),
+    (@productoId, N'Compartir el aura en vivo', N'share', 9);
 
--- Ficha tecnica agrupada por bloque.
-IF NOT EXISTS (SELECT 1 FROM EspecificacionesProductos WHERE ProductoId = @productoId)
-    INSERT INTO EspecificacionesProductos (ProductoId, Grupo, Campo, Valor, Orden) VALUES
-    -- Dimensiones, Correa, Resistencia y Carga se retiraron: no aplican a la
-    -- manga o siguen pendientes del dato de fabricacion.
-    (@productoId, N'Físicas', N'Peso', N'210 g', 2),
-    (@productoId, N'Físicas', N'Carcasa', N'PLA de impresión 3D', 3),
-    (@productoId, N'Sensores', N'Conductancia', N'MCU-6701', 6),
+-- Ficha tecnica agrupada por bloque. Filas que no existen a proposito: Bluetooth
+-- (transmite por Wi-Fi), Resistencia al agua y Carga inalambrica (la manga no las
+-- tiene), Correa (ya no lleva) y Autonomia (con la bateria de 9V no hay una cifra
+-- medida; se agrega cuando la haya).
+DELETE FROM EspecificacionesProductos WHERE ProductoId = @productoId;
+INSERT INTO EspecificacionesProductos (ProductoId, Grupo, Campo, Valor, Orden) VALUES
+    (@productoId, N'Físicas', N'Dimensiones', N'14 × 13.5 × 8 cm', 1),
+    (@productoId, N'Físicas', N'Peso', N'240 g', 2),
+    (@productoId, N'Físicas', N'Carcasa', N'Filamento PLA', 3),
+    (@productoId, N'Sensores', N'Conductancia', N'MCU-6701 (GSR)', 6),
     (@productoId, N'Sensores', N'Pulso', N'MAX30102', 7),
     (@productoId, N'Sensores', N'Rango de pulso', N'30 – 220 BPM', 9),
-    (@productoId, N'Sistema', N'Procesador', N'ESP32 con Wi-Fi y Bluetooth', 10),
+    (@productoId, N'Sistema', N'Procesador', N'ESP32 con Wi-Fi', 10),
     (@productoId, N'Sistema', N'Batería', N'Recargable de 9V · 500 mAh', 11),
-    (@productoId, N'Sistema', N'Autonomía', N'Hasta 5 horas de uso continuo', 12),
-    (@productoId, N'Sistema', N'Compatibilidad', N'iOS 14+ · Android 11+', 14);
+    (@productoId, N'Sistema', N'Regulador de voltaje', N'LM2596', 13),
+    (@productoId, N'Sistema', N'Indicador de carga', N'XW228DKFR4', 15),
+    (@productoId, N'Sistema', N'Compatibilidad', N'iOS 14+ · Android 11+', 17);
 
 -- Compra de demostracion para el cliente de prueba.
 DECLARE @clienteId INT = (SELECT TOP 1 Id FROM Usuarios WHERE Username = 'cliente');

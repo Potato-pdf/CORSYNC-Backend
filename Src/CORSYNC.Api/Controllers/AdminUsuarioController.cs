@@ -233,6 +233,14 @@ namespace CORSYNC.Api.Controllers
                         return BadRequest("No puedes desactivar al último administrador activo.");
                     }
                 }
+                // Al desactivar hay que cortar las sesiones abiertas: el login y el
+                // refresco ya validan Activo, pero el token de acceso que el usuario
+                // tiene en la mano seguiria sirviendo hasta expirar.
+                if (!request.Activo.Value && usuario.Activo)
+                {
+                    await RevocarSesionesAsync(id);
+                }
+
                 usuario.Activo = request.Activo.Value;
             }
 
@@ -264,11 +272,7 @@ namespace CORSYNC.Api.Controllers
             usuario.PasswordHash = _authService.HashPassword(password);
 
             // Invalida las sesiones abiertas del usuario.
-            var tokens = await _context.RefreshTokens.Where(t => t.UsuarioId == id && !t.Revocado).ToListAsync();
-            foreach (var token in tokens)
-            {
-                token.Revocado = true;
-            }
+            await RevocarSesionesAsync(id);
 
             await _context.SaveChangesAsync();
 
@@ -291,8 +295,15 @@ namespace CORSYNC.Api.Controllers
             });
         }
 
+        /// <summary>
+        /// Da de baja una cuenta desactivandola. Ningun usuario se borra fisicamente:
+        /// sus compras, cotizaciones y correos enviados lo referencian, y quitar el
+        /// renglon dejaria ese historial sin dueno o impediria la baja justo de las
+        /// cuentas con mas movimiento. Desactivar corta el acceso, conserva la
+        /// trazabilidad y se puede revertir.
+        /// </summary>
         [HttpDelete("{id}")]
-        public async Task<IActionResult> EliminarUsuario(int id)
+        public async Task<IActionResult> DesactivarUsuario(int id)
         {
             var usuario = await _context.Usuarios.FindAsync(id);
             if (usuario == null)
@@ -303,7 +314,7 @@ namespace CORSYNC.Api.Controllers
             var actualClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (actualClaim != null && int.TryParse(actualClaim.Value, out int actualId) && actualId == id)
             {
-                return BadRequest("No puedes eliminar tu propia cuenta.");
+                return BadRequest("No puedes desactivar tu propia cuenta.");
             }
 
             if (usuario.Role == "Admin")
@@ -311,18 +322,37 @@ namespace CORSYNC.Api.Controllers
                 int adminsActivos = await _context.Usuarios.CountAsync(u => u.Role == "Admin" && u.Activo && u.Id != id);
                 if (adminsActivos == 0)
                 {
-                    return BadRequest("No puedes eliminar al último administrador activo.");
+                    return BadRequest("No puedes desactivar al último administrador activo.");
                 }
             }
 
-            if (await _context.ComprasClientes.AnyAsync(c => c.UsuarioId == id))
+            if (!usuario.Activo)
             {
-                return BadRequest("El usuario tiene compras registradas. Desactivalo en lugar de eliminarlo.");
+                return Ok(new { Message = $"La cuenta de {usuario.Username} ya estaba desactivada." });
             }
 
-            _context.Usuarios.Remove(usuario);
+            usuario.Activo = false;
+            await RevocarSesionesAsync(id);
             await _context.SaveChangesAsync();
-            return Ok(new { Message = "Usuario eliminado." });
+
+            return Ok(new { Message = $"Se desactivó la cuenta de {usuario.Username}." });
+        }
+
+        /// <summary>
+        /// Marca como revocados los tokens de refresco vigentes del usuario. No llama
+        /// a SaveChanges: lo hace quien la invoca, para que la baja quede en una sola
+        /// transaccion junto con el cambio de estado.
+        /// </summary>
+        private async Task RevocarSesionesAsync(int usuarioId)
+        {
+            var tokens = await _context.RefreshTokens
+                .Where(t => t.UsuarioId == usuarioId && !t.Revocado)
+                .ToListAsync();
+
+            foreach (var token in tokens)
+            {
+                token.Revocado = true;
+            }
         }
 
         /// <summary>Bitacora de correos generados por el sistema.</summary>

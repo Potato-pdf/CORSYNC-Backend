@@ -265,10 +265,10 @@ namespace CORSYNC.Infrastructure.Database
                 new MateriaPrima { Id = 1, Nombre = "Carcasa impresa en 3D", Descripcion = "Carcasa impresa en 3D en filamento PLA, diseñada a medida para alojar los sensores.", CostoUnidad = 100.00m, UnidadMedida = "pieza", Stock = 800, StockMinimo = 200, ProveedorId = 2, Activo = true },
                 new MateriaPrima { Id = 2, Nombre = "Sensor MCU-6701 (GSR)", Descripcion = "Módulo de conductancia de la piel para medición de activación fisiológica.", CostoUnidad = 259.96m, UnidadMedida = "pieza", Stock = 640, StockMinimo = 150, ProveedorId = 1, Activo = true },
                 new MateriaPrima { Id = 3, Nombre = "Sensor MAX30102", Descripcion = "Sensor de ritmo cardíaco y HRV.", CostoUnidad = 64.24m, UnidadMedida = "pieza", Stock = 700, StockMinimo = 150, ProveedorId = 1, Activo = true },
-                new MateriaPrima { Id = 4, Nombre = "Módulo ESP32 (MCU + Wi-Fi)", Descripcion = "Microcontrolador con Wi-Fi y Bluetooth integrados.", CostoUnidad = 129.99m, UnidadMedida = "pieza", Stock = 520, StockMinimo = 120, ProveedorId = 1, Activo = true },
+                new MateriaPrima { Id = 4, Nombre = "Módulo ESP32 (MCU + Wi-Fi)", Descripcion = "Microcontrolador con Wi-Fi integrado; es el que transmite las lecturas a la app.", CostoUnidad = 129.99m, UnidadMedida = "pieza", Stock = 520, StockMinimo = 120, ProveedorId = 1, Activo = true },
                 new MateriaPrima { Id = 5, Nombre = "Batería recargable de 9V (500 mAh)", Descripcion = "Batería recargable de 9V y 500 mAh que alimenta la manga durante la sesión de medición.", CostoUnidad = 150.00m, UnidadMedida = "pieza", Stock = 900, StockMinimo = 250, ProveedorId = 4, Activo = true },
                 new MateriaPrima { Id = 6, Nombre = "Módulo indicador de carga XW228DKFR4", Descripcion = "Módulo indicador del nivel de carga de la batería.", CostoUnidad = 80.00m, UnidadMedida = "pieza", Stock = 600, StockMinimo = 150, ProveedorId = 3, Activo = true },
-                new MateriaPrima { Id = 7, Nombre = "Regulador de voltaje", Descripcion = "Regulador que estabiliza la salida de la batería de 9V hacia los sensores y el MCU.", CostoUnidad = 95.60m, UnidadMedida = "pieza", Stock = 600, StockMinimo = 150, ProveedorId = 3, Activo = true }
+                new MateriaPrima { Id = 7, Nombre = "Regulador de voltaje LM2596", Descripcion = "Regulador que estabiliza la salida de la batería de 9V hacia los sensores y el MCU.", CostoUnidad = 95.60m, UnidadMedida = "pieza", Stock = 600, StockMinimo = 150, ProveedorId = 3, Activo = true }
             );
 
             // Costo primo: materia prima 879.79 + mano de obra 60.00 = 939.79
@@ -320,24 +320,28 @@ namespace CORSYNC.Infrastructure.Database
                 new CaracteristicaProducto { Id = 3, ProductoId = 1, Orden = 3, Icono = "circle-half", Texto = "Generación de aura en tiempo real" },
                 new CaracteristicaProducto { Id = 4, ProductoId = 1, Orden = 4, Icono = "phone", Texto = "Aplicación móvil para iOS y Android" },
                 new CaracteristicaProducto { Id = 5, ProductoId = 1, Orden = 5, Icono = "wifi", Texto = "Conexión Wi-Fi mediante ESP32" },
-                new CaracteristicaProducto { Id = 6, ProductoId = 1, Orden = 6, Icono = "battery-full", Texto = "Hasta 5 horas de medición continua con una carga" },
-                new CaracteristicaProducto { Id = 7, ProductoId = 1, Orden = 7, Icono = "box", Texto = "Carcasa fabricada por impresión 3D" },
-                new CaracteristicaProducto { Id = 8, ProductoId = 1, Orden = 8, Icono = "share", Texto = "Compartir el aura en vivo" }
+                new CaracteristicaProducto { Id = 6, ProductoId = 1, Orden = 6, Icono = "battery-full", Texto = "Batería recargable de 9V y 500 mAh, con indicador de nivel de carga XW228DKFR4" },
+                new CaracteristicaProducto { Id = 9, ProductoId = 1, Orden = 7, Icono = "lightning-charge", Texto = "Regulador de voltaje LM2596 que estabiliza la alimentación de los sensores" },
+                new CaracteristicaProducto { Id = 7, ProductoId = 1, Orden = 8, Icono = "box", Texto = "Carcasa impresa en 3D en filamento PLA" },
+                new CaracteristicaProducto { Id = 8, ProductoId = 1, Orden = 9, Icono = "share", Texto = "Compartir el aura en vivo" }
             );
 
-            // Ficha tecnica, agrupada por bloque.
+            // Ficha tecnica, agrupada por bloque. Filas que no existen a proposito:
+            // Bluetooth (la transmision es por Wi-Fi), Resistencia al agua y Carga
+            // inalambrica (la manga no las tiene), Correa (ya no lleva) y Autonomia
+            // (con la bateria de 9V no hay una cifra medida; se agrega cuando la haya).
             modelBuilder.Entity<EspecificacionProducto>().HasData(
-                // Las filas de Dimensiones, Correa, Resistencia y Carga se retiraron:
-                // no aplican a la manga o siguen pendientes del dato de fabricacion.
-                new EspecificacionProducto { Id = 2, ProductoId = 1, Orden = 2, Grupo = "Físicas", Campo = "Peso", Valor = "210 g" },
-                new EspecificacionProducto { Id = 3, ProductoId = 1, Orden = 3, Grupo = "Físicas", Campo = "Carcasa", Valor = "PLA de impresión 3D" },
-                new EspecificacionProducto { Id = 6, ProductoId = 1, Orden = 6, Grupo = "Sensores", Campo = "Conductancia", Valor = "MCU-6701" },
+                new EspecificacionProducto { Id = 1, ProductoId = 1, Orden = 1, Grupo = "Físicas", Campo = "Dimensiones", Valor = "14 × 13.5 × 8 cm" },
+                new EspecificacionProducto { Id = 2, ProductoId = 1, Orden = 2, Grupo = "Físicas", Campo = "Peso", Valor = "240 g" },
+                new EspecificacionProducto { Id = 3, ProductoId = 1, Orden = 3, Grupo = "Físicas", Campo = "Carcasa", Valor = "Filamento PLA" },
+                new EspecificacionProducto { Id = 6, ProductoId = 1, Orden = 6, Grupo = "Sensores", Campo = "Conductancia", Valor = "MCU-6701 (GSR)" },
                 new EspecificacionProducto { Id = 7, ProductoId = 1, Orden = 7, Grupo = "Sensores", Campo = "Pulso", Valor = "MAX30102" },
                 new EspecificacionProducto { Id = 9, ProductoId = 1, Orden = 9, Grupo = "Sensores", Campo = "Rango de pulso", Valor = "30 – 220 BPM" },
-                new EspecificacionProducto { Id = 10, ProductoId = 1, Orden = 10, Grupo = "Sistema", Campo = "Procesador", Valor = "ESP32 con Wi-Fi y Bluetooth" },
+                new EspecificacionProducto { Id = 10, ProductoId = 1, Orden = 10, Grupo = "Sistema", Campo = "Procesador", Valor = "ESP32 con Wi-Fi" },
                 new EspecificacionProducto { Id = 11, ProductoId = 1, Orden = 11, Grupo = "Sistema", Campo = "Batería", Valor = "Recargable de 9V · 500 mAh" },
-                new EspecificacionProducto { Id = 12, ProductoId = 1, Orden = 12, Grupo = "Sistema", Campo = "Autonomía", Valor = "Hasta 5 horas de uso continuo" },
-                new EspecificacionProducto { Id = 14, ProductoId = 1, Orden = 14, Grupo = "Sistema", Campo = "Compatibilidad", Valor = "iOS 14+ · Android 11+" }
+                new EspecificacionProducto { Id = 13, ProductoId = 1, Orden = 13, Grupo = "Sistema", Campo = "Regulador de voltaje", Valor = "LM2596" },
+                new EspecificacionProducto { Id = 15, ProductoId = 1, Orden = 15, Grupo = "Sistema", Campo = "Indicador de carga", Valor = "XW228DKFR4" },
+                new EspecificacionProducto { Id = 14, ProductoId = 1, Orden = 17, Grupo = "Sistema", Campo = "Compatibilidad", Valor = "iOS 14+ · Android 11+" }
             );
 
             modelBuilder.Entity<DocumentoProducto>().HasData(
@@ -365,12 +369,12 @@ namespace CORSYNC.Infrastructure.Database
             modelBuilder.Entity<PreguntaFrecuente>().HasData(
                 new PreguntaFrecuente { Id = 1, Categoria = "Producto", Orden = 1, Activo = true, Pregunta = "¿Qué sensores incluye CORSYNC?", Respuesta = "CORSYNC integra dos sensores: el MCU-6701, que mide la conductancia eléctrica de tu piel, y el MAX30102, que registra tu ritmo cardíaco. La combinación de ambas señales es la que alimenta el cálculo de tu aura." },
                 new PreguntaFrecuente { Id = 2, Categoria = "Producto", Orden = 2, Activo = true, Pregunta = "¿Cómo se genera el aura?", Respuesta = "La manga envía las lecturas de actividad galvánica y ritmo cardíaco a la aplicación móvil. Ahí se procesan en conjunto y se traducen en color, intensidad y movimiento. Un pulso elevado con alta conductancia produce un aura cálida y agitada; un pulso bajo y estable produce tonos fríos y un movimiento sereno." },
-                new PreguntaFrecuente { Id = 3, Categoria = "Producto", Orden = 3, Activo = true, Pregunta = "¿Cuánto dura la batería?", Respuesta = "CORSYNC funciona con una pila recargable de 9V que ofrece hasta 5 horas de medición continua. Al agotarse se recarga y la manga vuelve a estar lista para la siguiente sesión." },
+                new PreguntaFrecuente { Id = 3, Categoria = "Producto", Orden = 3, Activo = true, Pregunta = "¿Cuánto dura la batería?", Respuesta = "CORSYNC funciona con una batería recargable de 9V y 500 mAh, con un módulo indicador que muestra el nivel de carga restante. Al agotarse se recarga y la manga vuelve a estar lista para la siguiente sesión. La duración por carga depende del uso; publicaremos la cifra en cuanto termine la caracterización del prototipo." },
                 new PreguntaFrecuente { Id = 4, Categoria = "Producto", Orden = 4, Activo = true, Pregunta = "¿Cómo se coloca la manga?", Respuesta = "CORSYNC se desliza sobre el antebrazo hasta que los sensores queden en contacto directo con la piel. No lleva correa ni broche: la propia manga la mantiene en su sitio durante la lectura." },
                 new PreguntaFrecuente { Id = 5, Categoria = "App móvil", Orden = 5, Activo = true, Pregunta = "¿Es compatible con iOS y Android?", Respuesta = "Sí. La aplicación CORSYNC está disponible para iOS 14 o superior y Android 11 o superior, y recibe las lecturas por Wi-Fi." },
                 new PreguntaFrecuente { Id = 6, Categoria = "App móvil", Orden = 6, Activo = true, Pregunta = "¿Puedo compartir mi aura con otras personas?", Respuesta = "Sí. Desde la aplicación puedes compartir tu aura en tiempo real con las personas que elijas o publicarla en redes sociales. También puedes guardar tu historial y ver cómo ha evolucionado tu aura a lo largo del tiempo." },
                 new PreguntaFrecuente { Id = 7, Categoria = "Soporte", Orden = 7, Activo = true, Pregunta = "¿Cuál es la garantía del producto?", Respuesta = "Todas las mangas incluyen 2 años de garantía por defectos de fabricación. Además ofrecemos 30 días de garantía de satisfacción: si el producto no te convence, te devolvemos tu dinero." },
-                new PreguntaFrecuente { Id = 8, Categoria = "Ventas", Orden = 8, Activo = true, Pregunta = "¿Ofrecen descuentos por volumen?", Respuesta = "Sí. Aplicamos descuentos progresivos sobre el subtotal: 10% a partir de 10 unidades, 15% a partir de 50 y 20% a partir de 100. Además existen precios preferentes por tipo de licencia Corporativa y Enterprise. Puedes calcular tu precio exacto en el formulario de cotización." }
+                new PreguntaFrecuente { Id = 8, Categoria = "Ventas", Orden = 8, Activo = true, Pregunta = "¿Ofrecen descuentos por volumen?", Respuesta = "Sí. Aplicamos descuentos progresivos sobre el subtotal: 10% a partir de 5 unidades y 15% a partir de 15. Además existen precios preferentes por tipo de licencia Corporativa y Enterprise. El cotizador en línea admite hasta 100 unidades; si necesitas más, escríbenos y lo vemos contigo. Puedes calcular tu precio exacto en el formulario de cotización." }
             );
         }
     }

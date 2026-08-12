@@ -145,7 +145,7 @@ La aplicación móvil es el canal principal de interacción del usuario con el s
    * Bitácora donde el usuario registra manualmente su estado percibido y lo contrasta con los datos capturados por el sensor.
 
 5. **Perfil y Configuración:**
-   * Vinculación de dispositivos IoT mediante Bluetooth Low Energy (BLE) o aprovisionamiento Wi-Fi para MQTT.
+   * Vinculación de dispositivos IoT mediante aprovisionamiento Wi-Fi para MQTT. La manga no usa Bluetooth: el ESP32 transmite las lecturas por Wi-Fi.
    * Configuración de preferencias de visualización (esquema de colores, umbrales de alerta).
 
 6. **Gamificación:**
@@ -512,7 +512,7 @@ Importes en MXN, con el costo real de compra de cada componente:
 | **Precio de lista** | **$1,762.11** |
 
 Licencias: Individual ×1.00 · Corporativa ×0.90 · Enterprise ×0.83
-Descuentos por volumen: 10 % desde 10 uds · 15 % desde 50 · 20 % desde 100
+Descuentos por volumen: 10 % desde 5 uds · 15 % desde 15 · tope de 100 uds por cotización
 IVA: 16 %
 
 Implementado en `CosteoService.cs` y `ReglasComerciales` (en `ICosteoService.cs`), y cubierto por `CosteoServiceTests.cs` y `CotizacionControllerTests.cs`.
