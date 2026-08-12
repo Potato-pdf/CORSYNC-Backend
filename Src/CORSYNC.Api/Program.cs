@@ -15,6 +15,20 @@ using CORSYNC.Infrastructure.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configuracion local de cada desarrollador (cadenas de conexion, SMTP...).
+//
+// appsettings.Local.json esta en .gitignore, asi que nunca viaja al repositorio.
+// Se prefiere a los user secrets porque estos solo se cargan cuando el entorno es
+// Development, y ahi appsettings.Development.json deja las cadenas vacias: no se
+// podia tener base real y correo a la vez. Este archivo funciona en cualquier
+// entorno. Hay una plantilla en appsettings.Local.example.json.
+//
+// Las variables de entorno se vuelven a registrar despues para que sigan mandando
+// sobre el archivo: es lo que usa el hospedaje en produccion (Smtp__Password...).
+builder.Configuration
+    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
+
 // Add DbContexts - Fall back to InMemory for demonstration or local run without SQL Server instance
 var adminConn = builder.Configuration.GetConnectionString("AdminConnection");
 if (!string.IsNullOrEmpty(adminConn))

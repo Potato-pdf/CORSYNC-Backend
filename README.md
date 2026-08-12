@@ -320,38 +320,47 @@ No hay que ejecutar `dotnet ef database update`: no hay migraciones que aplicar.
 * `Cors:Origins` es una lista blanca. `http://localhost:4200` ya viene permitido por código para desarrollo; en producción hay que añadir aquí el dominio del sitio, o el navegador bloqueará las llamadas.
 * `Smtp:Habilitado` en `false` deja los correos registrados en la tabla `CorreosEnviados`, consultables desde `/admin/correos`. Poniéndolo en `true` con credenciales válidas, el envío pasa a ser real sin tocar código.
 
-### Correo: cómo dar de alta las credenciales
+### Configuración local: primer arranque tras clonar
 
-**La contraseña no va en ningún `appsettings.json`.** Los dos se versionan —
-incluido `appsettings.Development.json`— así que una contraseña ahí termina
-publicada en GitHub. En desarrollo se usan *user secrets*, que se guardan en el
-perfil del usuario (`%APPDATA%\Microsoft\UserSecrets\corsync-api-smtp\`) y nunca
-entran al repositorio:
+**Ninguna contraseña va en `appsettings.json` ni en `appsettings.Development.json`:
+los dos se versionan**, así que una credencial ahí acaba publicada en GitHub.
+
+Cada desarrollador tiene su propio `appsettings.Local.json`, que está en
+`.gitignore` y nunca se sube. Al clonar el repositorio, un único paso:
 
 ```bash
-cd Src/CORSYNC.Api
-dotnet user-secrets set "Smtp:Habilitado" "true"
-dotnet user-secrets set "Smtp:Host" "smtp.gmail.com"
-dotnet user-secrets set "Smtp:Port" "587"
-dotnet user-secrets set "Smtp:EnableSsl" "true"
-dotnet user-secrets set "Smtp:User" "tu-cuenta@gmail.com"
-dotnet user-secrets set "Smtp:Password" "xxxx xxxx xxxx xxxx"
-dotnet user-secrets set "Smtp:From" "tu-cuenta@gmail.com"
+cp Src/CORSYNC.Api/appsettings.Local.example.json Src/CORSYNC.Api/appsettings.Local.json
 ```
 
-Con Gmail hay que usar una **contraseña de aplicación** (Cuenta de Google →
-Seguridad → Verificación en dos pasos → Contraseñas de aplicaciones), no la
-contraseña normal de la cuenta: el SMTP de Gmail rechaza esta última. El valor
-de 16 caracteres funciona con o sin los espacios.
+Y se rellenan los valores propios. La plantilla `appsettings.Local.example.json`
+sí se versiona y documenta cada campo, así que siempre se sabe qué hace falta.
 
-`dotnet user-secrets list` muestra lo guardado y `dotnet user-secrets clear` lo
-borra. Los secretos sólo se cargan cuando `ASPNETCORE_ENVIRONMENT=Development`;
-**en producción se usan variables de entorno** (`Smtp__Password`, etc.) o el
-almacén de secretos del hospedaje.
+Este archivo se carga **en cualquier entorno** y pisa a `appsettings.json`. Se
+prefiere a los *user secrets* justo por eso: aquéllos sólo se cargan cuando
+`ASPNETCORE_ENVIRONMENT=Development`, y en ese entorno
+`appsettings.Development.json` deja las cadenas de conexión vacías, con lo que no
+se podía tener base de datos real y correo configurado a la vez.
+
+Las **variables de entorno siguen mandando por encima** del archivo, que es como
+se inyectan las credenciales en el hospedaje de producción (`Smtp__Password`,
+`ConnectionStrings__AdminConnection`, …).
+
+**Base de datos.** Con las cadenas vacías (`""`) la API arranca con base en
+memoria: datos de ejemplo, sin tocar el servidor compartido y sin instalar nada.
+Es lo recomendable para desarrollar y para correr las pruebas.
+
+**Correo.** Con `Smtp:Password` vacía los correos no se intentan enviar: quedan
+registrados en la tabla `CorreosEnviados`, consultables desde `/admin/correos`.
+Para enviar de verdad con Gmail hace falta una **contraseña de aplicación**
+(Cuenta de Google → Seguridad → Verificación en dos pasos → Contraseñas de
+aplicaciones), no la contraseña normal de la cuenta: el SMTP de Gmail rechaza
+esta última. El valor de 16 caracteres funciona con o sin los espacios, y queda
+revocado si se cambia la contraseña principal de la cuenta.
 
 Para comprobar que quedó bien, da de alta un usuario desde el panel con un correo
 tuyo: la respuesta trae `correoEnviado: true` y la bitácora `/admin/correos`
-marca el renglón como **Enviado** en vez de **Simulado**.
+marca el renglón como **Enviado** en vez de **Simulado**. Si algo falta, el propio
+mensaje dice cuál de los tres valores es (`Habilitado`, `Host` o `Password`).
 
 ### Variables de entorno
 

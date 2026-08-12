@@ -33,8 +33,13 @@ namespace CORSYNC.Infrastructure.Notifications
 
             var host = _configuration["Smtp:Host"];
             var habilitado = LeerBool("Smtp:Habilitado", false);
+            var passwordConfigurada = !string.IsNullOrWhiteSpace(_configuration["Smtp:Password"]);
 
-            if (habilitado && !string.IsNullOrWhiteSpace(host))
+            // La contrasena cuenta como requisito, no solo el interruptor: dejar
+            // Habilitado=true con la credencial pendiente hacia que cada alta de
+            // usuario fallara con un error de autenticacion en vez de quedarse en
+            // la bitacora, que es el comportamiento util mientras no hay SMTP.
+            if (habilitado && !string.IsNullOrWhiteSpace(host) && passwordConfigurada)
             {
                 try
                 {
@@ -70,16 +75,16 @@ namespace CORSYNC.Infrastructure.Notifications
                 // el administrador entregue las credenciales manualmente. Se distingue
                 // que falta exactamente: "no configurado" a secas obligaba a adivinar si
                 // el problema era el interruptor, el host o unos secretos sin cargar.
-                var motivo = !habilitado
-                    ? "Smtp:Habilitado esta en false"
-                    : "Smtp:Host esta vacio";
+                var motivo = !habilitado ? "Smtp:Habilitado esta en false"
+                    : string.IsNullOrWhiteSpace(host) ? "Smtp:Host esta vacio"
+                    : "falta Smtp:Password";
 
                 resultado.Enviado = false;
                 resultado.Estado = "Simulado";
                 resultado.Mensaje =
                     $"SMTP no configurado ({motivo}). El correo para {destinatario} quedo registrado " +
-                    "en la bitacora del panel. Revisa la seccion \"Correo\" del README: los user secrets " +
-                    "solo se cargan con ASPNETCORE_ENVIRONMENT=Development.";
+                    "en la bitacora del panel. Completa la seccion Smtp de appsettings.Local.json " +
+                    "(hay plantilla en appsettings.Local.example.json y pasos en el README).";
 
                 _logger.LogWarning(
                     "Correo simulado para {Destinatario} ({Motivo}). Asunto: {Asunto}",
