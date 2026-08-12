@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -74,8 +75,14 @@ namespace CORSYNC.Api.Controllers
                 return BadRequest("El nombre del proveedor es obligatorio.");
             }
 
+            if (!TelefonoValido(proveedor.Telefono, out string errorTelefono))
+            {
+                return BadRequest(errorTelefono);
+            }
+
             proveedor.Id = 0;
             proveedor.Nombre = proveedor.Nombre.Trim();
+            proveedor.Telefono = (proveedor.Telefono ?? string.Empty).Trim();
             proveedor.FechaAlta = DateTime.UtcNow;
 
             _context.Proveedores.Add(proveedor);
@@ -103,10 +110,15 @@ namespace CORSYNC.Api.Controllers
                 return BadRequest("El nombre del proveedor es obligatorio.");
             }
 
+            if (!TelefonoValido(input.Telefono, out string errorTelefono))
+            {
+                return BadRequest(errorTelefono);
+            }
+
             proveedor.Nombre = input.Nombre.Trim();
             proveedor.Contacto = input.Contacto ?? string.Empty;
             proveedor.Email = input.Email ?? string.Empty;
-            proveedor.Telefono = input.Telefono ?? string.Empty;
+            proveedor.Telefono = (input.Telefono ?? string.Empty).Trim();
             proveedor.Direccion = input.Direccion ?? string.Empty;
             proveedor.Pais = input.Pais ?? string.Empty;
             proveedor.Activo = input.Activo;
@@ -115,8 +127,14 @@ namespace CORSYNC.Api.Controllers
             return Ok(proveedor);
         }
 
+        /// <summary>
+        /// Da de baja al proveedor desactivandolo. No se borra fisicamente: sus
+        /// ordenes de compra son el respaldo del inventario y del costo promedio, y
+        /// quitar el renglon dejaria ese historial sin origen. Desactivar lo saca de
+        /// las listas de alta y es reversible.
+        /// </summary>
         [HttpDelete("{id}")]
-        public async Task<IActionResult> EliminarProveedor(int id)
+        public async Task<IActionResult> DesactivarProveedor(int id)
         {
             var proveedor = await _context.Proveedores.FindAsync(id);
             if (proveedor == null)
@@ -124,20 +142,46 @@ namespace CORSYNC.Api.Controllers
                 return NotFound("Proveedor no encontrado.");
             }
 
-            if (await _context.ComprasProveedores.AnyAsync(c => c.ProveedorId == id))
+            if (!proveedor.Activo)
             {
-                return BadRequest("El proveedor tiene compras registradas. Desactivalo en lugar de eliminarlo.");
+                return Ok(new { Message = $"El proveedor {proveedor.Nombre} ya estaba desactivado." });
             }
 
-            if (await _context.MateriasPrimas.AnyAsync(m => m.ProveedorId == id))
-            {
-                return BadRequest("El proveedor surte insumos del catálogo. Reasígnalos antes de eliminarlo.");
-            }
-
-            _context.Proveedores.Remove(proveedor);
+            proveedor.Activo = false;
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "Proveedor eliminado con exito." });
+            return Ok(new { Message = $"Se desactivó al proveedor {proveedor.Nombre}." });
+        }
+
+        /// <summary>
+        /// El telefono es opcional, pero si viene tiene que ser un numero marcable:
+        /// entre 10 y 15 digitos, que es el rango de la E.164 (10 de un numero
+        /// nacional, 15 el maximo internacional). Los separadores + - ( ) . y los
+        /// espacios se admiten y no cuentan como digitos.
+        /// </summary>
+        private static bool TelefonoValido(string? telefono, out string mensaje)
+        {
+            mensaje = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(telefono))
+            {
+                return true;
+            }
+
+            if (!Regex.IsMatch(telefono, @"^[0-9\s\-\(\)\+\.]+$"))
+            {
+                mensaje = "El teléfono sólo admite dígitos y los separadores + - ( ) . y espacios.";
+                return false;
+            }
+
+            int digitos = telefono.Count(char.IsDigit);
+            if (digitos < 10 || digitos > 15)
+            {
+                mensaje = $"El teléfono debe tener entre 10 y 15 dígitos; recibimos {digitos}.";
+                return false;
+            }
+
+            return true;
         }
     }
 }

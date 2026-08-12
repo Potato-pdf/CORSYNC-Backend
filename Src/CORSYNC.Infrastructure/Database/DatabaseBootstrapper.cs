@@ -426,6 +426,44 @@ WHERE Nombre IN (
 -- Recetas del producto anterior (espejo) que ya no forman parte del catalogo.
 DELETE FROM RecetasProductos WHERE ProductoId <> @productoId;
 
+-- Ordenes de compra que dan origen al inventario. Sin ellas el stock y el costo
+-- promedio de cada insumo apareceren sin respaldo en el modulo de compras. Cada
+-- renglon cuadra con las existencias y el costo sembrados, de modo que el valor
+-- del inventario es la suma de estas cuatro ordenes.
+--
+-- Van como 'Recibida': ya afectaron el inventario. El endpoint de recepcion
+-- rechaza recibir una compra que ya lo esta, asi que no pueden volver a sumar.
+-- Solo se siembran si no hay ninguna compra: si el administrador ya registro las
+-- suyas, no se toca su historial.
+IF NOT EXISTS (SELECT 1 FROM ComprasProveedores)
+BEGIN
+    DECLARE @compras TABLE (Folio NVARCHAR(50), ProveedorId INT, CompraId INT);
+
+    INSERT INTO ComprasProveedores (ProveedorId, Folio, MontoTotal, Estado, Notas, FechaCompra, FechaRecepcion)
+    OUTPUT INSERTED.Folio, INSERTED.ProveedorId, INSERTED.Id INTO @compras
+    VALUES
+        (@provMaxim,   N'OC-2026-0001', 278937.20, N'Recibida', N'Lote inicial de sensores y microcontroladores.', DATEADD(day, -80, GETUTCDATE()), DATEADD(day, -73, GETUTCDATE())),
+        (@provSilicon, N'OC-2026-0002',  80000.00, N'Recibida', N'Carcasas impresas en 3D del primer lote.',       DATEADD(day, -78, GETUTCDATE()), DATEADD(day, -70, GETUTCDATE())),
+        (@provPcb,     N'OC-2026-0003', 105360.00, N'Recibida', N'Regulación y control de carga.',                 DATEADD(day, -76, GETUTCDATE()), DATEADD(day, -65, GETUTCDATE())),
+        (@provBat,     N'OC-2026-0004', 135000.00, N'Recibida', N'Baterías recargables de 9V.',                    DATEADD(day, -74, GETUTCDATE()), DATEADD(day, -67, GETUTCDATE()));
+
+    -- Los renglones se arman contra el catalogo por nombre, para que apunten a los
+    -- Ids reales que quedaron tras la reconversion de insumos de arriba.
+    INSERT INTO DetallesCompraProveedor (CompraProveedorId, MateriaPrimaId, Cantidad, CostoUnitario, Importe)
+    SELECT c.CompraId, m.Id, d.Cantidad, d.CostoUnitario, d.Cantidad * d.CostoUnitario
+    FROM (VALUES
+        (N'OC-2026-0001', N'Sensor MCU-6701 (GSR)',                640, CAST(259.96 AS DECIMAL(18,4))),
+        (N'OC-2026-0001', N'Sensor MAX30102',                      700, CAST( 64.24 AS DECIMAL(18,4))),
+        (N'OC-2026-0001', N'Módulo ESP32 (MCU + Wi-Fi)',           520, CAST(129.99 AS DECIMAL(18,4))),
+        (N'OC-2026-0002', N'Carcasa impresa en 3D',                800, CAST(100.00 AS DECIMAL(18,4))),
+        (N'OC-2026-0003', N'Módulo indicador de carga XW228DKFR4', 600, CAST( 80.00 AS DECIMAL(18,4))),
+        (N'OC-2026-0003', N'Regulador de voltaje LM2596',          600, CAST( 95.60 AS DECIMAL(18,4))),
+        (N'OC-2026-0004', N'Batería recargable de 9V (500 mAh)',   900, CAST(150.00 AS DECIMAL(18,4)))
+    ) AS d (Folio, Insumo, Cantidad, CostoUnitario)
+    JOIN @compras c ON c.Folio = d.Folio
+    JOIN MateriasPrimas m ON m.Nombre = d.Insumo;
+END
+
 -- Documentacion del producto
 IF NOT EXISTS (SELECT 1 FROM DocumentosProductos WHERE ProductoId = @productoId)
     INSERT INTO DocumentosProductos (ProductoId, Titulo, Descripcion, Tipo, Url, Peso, FechaPublicacion) VALUES

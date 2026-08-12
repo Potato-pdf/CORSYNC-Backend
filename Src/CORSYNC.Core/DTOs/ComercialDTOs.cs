@@ -179,8 +179,13 @@ namespace CORSYNC.Core.DTOs
         [Range(1, int.MaxValue)]
         public int MateriaPrimaId { get; set; }
 
-        [Range(0.0001, 1000000, ErrorMessage = "La cantidad debe ser mayor a cero.")]
-        public decimal Cantidad { get; set; }
+        /// <summary>
+        /// Piezas pedidas. Es entero a proposito: los insumos se compran por unidad
+        /// completa (piezas, pares, kits) y no tiene sentido ordenar fracciones. El
+        /// costo unitario si es decimal, porque el precio si trae centavos.
+        /// </summary>
+        [Range(1, 1000000, ErrorMessage = "La cantidad debe ser un número entero de al menos 1.")]
+        public int Cantidad { get; set; }
 
         [Range(0, 1000000, ErrorMessage = "El costo unitario no puede ser negativo.")]
         public decimal CostoUnitario { get; set; }

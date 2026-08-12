@@ -299,6 +299,32 @@ namespace CORSYNC.Infrastructure.Database
                 new RecetaProducto { Id = 7, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 7, CantidadRequerida = 1, MermaPorcentaje = 0 }
             );
 
+            // Ordenes de compra que dan origen al inventario. Sin ellas el stock y el
+            // costo promedio de arriba aparecerian de la nada, sin respaldo en el
+            // modulo de compras. Cada renglon cuadra exactamente con las existencias
+            // y el costo unitario sembrados, de modo que el valor del inventario
+            // (599,297.20) es la suma de estas cuatro ordenes.
+            //
+            // Van como "Recibida": ya afectaron el inventario. El endpoint de
+            // recepcion rechaza recibir una compra que ya lo esta, asi que no pueden
+            // volver a sumar stock desde el panel.
+            modelBuilder.Entity<CompraProveedor>().HasData(
+                new CompraProveedor { Id = 1, ProveedorId = 1, Folio = "OC-2026-0001", MontoTotal = 278937.20m, Estado = "Recibida", Notas = "Lote inicial de sensores y microcontroladores.", FechaCompra = alta.AddDays(20), FechaRecepcion = alta.AddDays(27) },
+                new CompraProveedor { Id = 2, ProveedorId = 2, Folio = "OC-2026-0002", MontoTotal = 80000.00m, Estado = "Recibida", Notas = "Carcasas impresas en 3D del primer lote.", FechaCompra = alta.AddDays(22), FechaRecepcion = alta.AddDays(30) },
+                new CompraProveedor { Id = 3, ProveedorId = 3, Folio = "OC-2026-0003", MontoTotal = 105360.00m, Estado = "Recibida", Notas = "Regulación y control de carga.", FechaCompra = alta.AddDays(24), FechaRecepcion = alta.AddDays(35) },
+                new CompraProveedor { Id = 4, ProveedorId = 4, Folio = "OC-2026-0004", MontoTotal = 135000.00m, Estado = "Recibida", Notas = "Baterías recargables de 9V.", FechaCompra = alta.AddDays(26), FechaRecepcion = alta.AddDays(33) }
+            );
+
+            modelBuilder.Entity<DetalleCompraProveedor>().HasData(
+                new DetalleCompraProveedor { Id = 1, CompraProveedorId = 1, MateriaPrimaId = 2, Cantidad = 640, CostoUnitario = 259.96m, Importe = 166374.40m },
+                new DetalleCompraProveedor { Id = 2, CompraProveedorId = 1, MateriaPrimaId = 3, Cantidad = 700, CostoUnitario = 64.24m, Importe = 44968.00m },
+                new DetalleCompraProveedor { Id = 3, CompraProveedorId = 1, MateriaPrimaId = 4, Cantidad = 520, CostoUnitario = 129.99m, Importe = 67594.80m },
+                new DetalleCompraProveedor { Id = 4, CompraProveedorId = 2, MateriaPrimaId = 1, Cantidad = 800, CostoUnitario = 100.00m, Importe = 80000.00m },
+                new DetalleCompraProveedor { Id = 5, CompraProveedorId = 3, MateriaPrimaId = 6, Cantidad = 600, CostoUnitario = 80.00m, Importe = 48000.00m },
+                new DetalleCompraProveedor { Id = 6, CompraProveedorId = 3, MateriaPrimaId = 7, Cantidad = 600, CostoUnitario = 95.60m, Importe = 57360.00m },
+                new DetalleCompraProveedor { Id = 7, CompraProveedorId = 4, MateriaPrimaId = 5, Cantidad = 900, CostoUnitario = 150.00m, Importe = 135000.00m }
+            );
+
             // Galeria del producto. Estas imagenes viven en el repositorio bajo
             // wwwroot/img/producto y por eso no llevan NombreArchivo: al borrarlas
             // desde el panel solo desaparece el registro, el archivo se conserva.
