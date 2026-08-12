@@ -44,7 +44,7 @@ namespace CORSYNC.Tests
         {
             NombreCliente = "Cliente Prueba",
             Email = "cliente@prueba.com",
-            Telefono = "+52 33 0000 0000",
+            Telefono = "3300000000",
             Cantidad = 1,
             TipoLicencia = "Individual",
             AceptaPrivacidad = true
@@ -247,6 +247,120 @@ namespace CORSYNC.Tests
                 .TryValidateObject(request, contexto, errores, validateAllProperties: true);
 
             Assert.True(valido);
+        }
+
+        // -----------------------------------------------------------------
+        // Telefono: diez digitos exactos, sin prefijo ni separadores.
+        // -----------------------------------------------------------------
+
+        private static bool EsValido(CotizacionRequest request, out List<System.ComponentModel.DataAnnotations.ValidationResult> errores)
+        {
+            var contexto = new System.ComponentModel.DataAnnotations.ValidationContext(request);
+            errores = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+            return System.ComponentModel.DataAnnotations.Validator
+                .TryValidateObject(request, contexto, errores, validateAllProperties: true);
+        }
+
+        [Theory]
+        [InlineData("3312345678")]   // diez digitos
+        [InlineData("4765783920")]
+        public void CotizacionRequest_TelefonoDeDiezDigitos_EsValido(string telefono)
+        {
+            var request = RequestBase();
+            request.Telefono = telefono;
+
+            Assert.True(EsValido(request, out _));
+        }
+
+        [Theory]
+        [InlineData("33123456789")]        // once digitos
+        [InlineData("331234567")]          // nueve digitos
+        [InlineData("+52 33 1234 5678")]   // con prefijo y espacios
+        [InlineData("33-1234-5678")]       // con separadores
+        [InlineData("")]                   // vacio
+        public void CotizacionRequest_TelefonoFueraDeFormato_NoEsValido(string telefono)
+        {
+            var request = RequestBase();
+            request.Telefono = telefono;
+
+            Assert.False(EsValido(request, out var errores));
+            Assert.NotEmpty(errores);
+        }
+
+        // -----------------------------------------------------------------
+        // "Personalizacion de auras" se retiro del catalogo comercial.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void ReglasComerciales_YaNoOfreceLaPersonalizacionDeAuras()
+        {
+            Assert.DoesNotContain(
+                CORSYNC.Core.Interfaces.ReglasComerciales.Servicios.Keys,
+                clave => clave == "personalizacion");
+        }
+
+        [Fact]
+        public async Task CalcularCotizacion_ServicioDePersonalizacion_YaNoSeCobra()
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            var request = RequestBase();
+            request.Servicios = new List<string> { "personalizacion" };
+
+            var okResult = Assert.IsType<OkObjectResult>(await controller.CalcularCotizacion(request));
+            var cotizacion = Assert.IsType<CotizacionResponse>(okResult.Value);
+
+            Assert.Empty(cotizacion.Servicios);
+            Assert.Equal(0m, cotizacion.TotalServicios);
+        }
+
+        // -----------------------------------------------------------------
+        // Cambio de estado: llega como objeto JSON, no como cadena suelta.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public async Task ActualizarEstado_ConEstadoValido_LoGuarda()
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            var okAlta = Assert.IsType<OkObjectResult>(await controller.CalcularCotizacion(RequestBase()));
+            var creada = Assert.IsType<CotizacionResponse>(okAlta.Value);
+
+            var resultado = await controller.ActualizarEstado(
+                creada.Id, new CambioEstadoRequest { Estado = "Contactado" });
+
+            Assert.IsType<OkObjectResult>(resultado);
+            Assert.Equal("Contactado", context.Cotizaciones.Single().Estado);
+        }
+
+        [Fact]
+        public async Task ActualizarEstado_ConEstadoInvalido_DevuelveBadRequest()
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            var okAlta = Assert.IsType<OkObjectResult>(await controller.CalcularCotizacion(RequestBase()));
+            var creada = Assert.IsType<CotizacionResponse>(okAlta.Value);
+
+            var resultado = await controller.ActualizarEstado(
+                creada.Id, new CambioEstadoRequest { Estado = "Archivada" });
+
+            Assert.IsType<BadRequestObjectResult>(resultado);
+            Assert.Equal("Nueva", context.Cotizaciones.Single().Estado);
+        }
+
+        [Fact]
+        public async Task ActualizarEstado_CotizacionInexistente_DevuelveNotFound()
+        {
+            using var context = GetDbContext();
+            var controller = GetController(context);
+
+            var resultado = await controller.ActualizarEstado(
+                9999, new CambioEstadoRequest { Estado = "Cerrada" });
+
+            Assert.IsType<NotFoundObjectResult>(resultado);
         }
 
         [Fact]

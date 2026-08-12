@@ -218,14 +218,20 @@ namespace CORSYNC.Api.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpPut("{id}/estado")]
-        public async Task<IActionResult> ActualizarEstado(int id, [FromBody] string estado)
+        public async Task<IActionResult> ActualizarEstado(int id, [FromBody] CambioEstadoRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             var cotizacion = await _context.Cotizaciones.FindAsync(id);
             if (cotizacion == null)
             {
                 return NotFound("Cotización no encontrada.");
             }
 
+            var estado = request.Estado.Trim();
             var permitidos = new[] { "Nueva", "Contactado", "Cerrada" };
             if (!permitidos.Contains(estado))
             {

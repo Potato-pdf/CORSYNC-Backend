@@ -22,8 +22,10 @@ namespace CORSYNC.Core.DTOs
         [MaxLength(120)]
         public string Email { get; set; } = string.Empty;
 
+        // Diez digitos exactos (formato nacional). Se valida tambien aqui y no solo
+        // en el formulario: el navegador no es la ultima palabra sobre lo que entra.
         [Required(ErrorMessage = "El telefono es requerido.")]
-        [MaxLength(40)]
+        [RegularExpression(@"^\d{10}$", ErrorMessage = "El teléfono debe tener exactamente 10 dígitos.")]
         public string Telefono { get; set; } = string.Empty;
 
         [MaxLength(80)]
@@ -36,7 +38,7 @@ namespace CORSYNC.Core.DTOs
         [MaxLength(30)]
         public string TipoLicencia { get; set; } = "Individual";
 
-        /// <summary>Claves de servicios: soporte-premium, capacitacion, api-access, personalizacion.</summary>
+        /// <summary>Claves de servicios: soporte-premium, capacitacion, api-access.</summary>
         public List<string> Servicios { get; set; } = new List<string>();
 
         [MaxLength(2000)]
@@ -391,6 +393,22 @@ namespace CORSYNC.Core.DTOs
         [Required(ErrorMessage = "El mensaje es requerido.")]
         [MaxLength(2000)]
         public string Mensaje { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Cambio de estado de una cotizacion o de una venta.
+    ///
+    /// Va como objeto y no como cadena suelta a proposito: con [FromBody] string
+    /// el cliente tiene que mandar una cadena JSON con comillas y cabecera
+    /// application/json, y HttpClient de Angular etiqueta los cuerpos de tipo
+    /// string como text/plain, para el que la API no tiene formateador. El
+    /// resultado era un 415 Unsupported Media Type en cada cambio de estado.
+    /// </summary>
+    public class CambioEstadoRequest
+    {
+        [Required(ErrorMessage = "El estado es requerido.")]
+        [MaxLength(20)]
+        public string Estado { get; set; } = string.Empty;
     }
 
     public class CompraClienteRequest

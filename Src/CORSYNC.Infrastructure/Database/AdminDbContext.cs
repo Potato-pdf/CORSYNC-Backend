@@ -389,7 +389,7 @@ namespace CORSYNC.Infrastructure.Database
             );
 
             modelBuilder.Entity<CompraCliente>().HasData(
-                new CompraCliente { Id = 1, UsuarioId = 2, ProductoId = 1, Folio = "VTA-2026-0001", Cantidad = 1, Monto = 2044.05m, Estado = "Entregado", NumeroSerie = "CS-2026-000418", Resenado = false, FechaCompra = alta.AddDays(135) }
+                new CompraCliente { Id = 1, UsuarioId = 2, ProductoId = 1, Folio = "VTA-2026-0001", Cantidad = 1, Monto = 2044.05m, Estado = "Procesando", NumeroSerie = "CS-2026-000418", Resenado = false, FechaCompra = alta.AddDays(135) }
             );
 
             modelBuilder.Entity<PreguntaFrecuente>().HasData(

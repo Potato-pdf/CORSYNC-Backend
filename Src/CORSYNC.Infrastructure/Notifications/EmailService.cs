@@ -67,11 +67,23 @@ namespace CORSYNC.Infrastructure.Notifications
             else
             {
                 // Sin SMTP configurado el correo queda registrado en la bitacora para que
-                // el administrador entregue las credenciales manualmente.
+                // el administrador entregue las credenciales manualmente. Se distingue
+                // que falta exactamente: "no configurado" a secas obligaba a adivinar si
+                // el problema era el interruptor, el host o unos secretos sin cargar.
+                var motivo = !habilitado
+                    ? "Smtp:Habilitado esta en false"
+                    : "Smtp:Host esta vacio";
+
                 resultado.Enviado = false;
                 resultado.Estado = "Simulado";
-                resultado.Mensaje = $"SMTP no configurado. El correo para {destinatario} quedo registrado en la bitacora del panel.";
-                _logger.LogInformation("Correo simulado para {Destinatario}: {Asunto}", destinatario, asunto);
+                resultado.Mensaje =
+                    $"SMTP no configurado ({motivo}). El correo para {destinatario} quedo registrado " +
+                    "en la bitacora del panel. Revisa la seccion \"Correo\" del README: los user secrets " +
+                    "solo se cargan con ASPNETCORE_ENVIRONMENT=Development.";
+
+                _logger.LogWarning(
+                    "Correo simulado para {Destinatario} ({Motivo}). Asunto: {Asunto}",
+                    destinatario, motivo, asunto);
             }
 
             _context.CorreosEnviados.Add(new CorreoEnviado

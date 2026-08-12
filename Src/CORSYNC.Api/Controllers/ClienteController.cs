@@ -220,14 +220,20 @@ namespace CORSYNC.Api.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpPut("/api/admin/compras-clientes/{id}/estado")]
-        public async Task<IActionResult> ActualizarEstadoCompra(int id, [FromBody] string estado)
+        public async Task<IActionResult> ActualizarEstadoCompra(int id, [FromBody] CambioEstadoRequest request)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             var compra = await _context.ComprasClientes.FindAsync(id);
             if (compra == null)
             {
                 return NotFound("Compra no encontrada.");
             }
 
+            var estado = request.Estado.Trim();
             var permitidos = new[] { "Procesando", "Enviado", "Entregado", "Cancelado" };
             if (!permitidos.Contains(estado))
             {

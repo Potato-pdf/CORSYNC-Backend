@@ -114,8 +114,10 @@ namespace CORSYNC.Core.Interfaces
             {
                 ["soporte-premium"] = ("Soporte técnico premium", 49m, "Atención prioritaria 24/7 durante 12 meses."),
                 ["capacitacion"] = ("Capacitación presencial", 149m, "Sesión de onboarding presencial para tu equipo."),
-                ["api-access"] = ("Acceso a la API", 99m, "Credenciales de API REST para integrar las lecturas a tus sistemas."),
-                ["personalizacion"] = ("Personalización de auras", 199m, "Paleta cromática y branding propios en la aplicación móvil.")
+                ["api-access"] = ("Acceso a la API", 99m, "Credenciales de API REST para integrar las lecturas a tus sistemas.")
+                // "Personalización de auras" se retiro del catalogo: no es un
+                // servicio que hoy se pueda entregar, y ofrecerlo en la cotizacion
+                // comprometia algo que no existe.
             };
     }
 }

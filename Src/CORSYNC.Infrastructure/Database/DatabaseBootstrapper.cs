@@ -409,6 +409,14 @@ DECLARE @productoId INT = (SELECT TOP 1 Id FROM Productos WHERE Nombre = N'CORSY
 -- creada con los valores anteriores quede alineada con el seed de EF.
 UPDATE Productos SET ManoObraUnitaria = 60.00, OverheadPorcentaje = 0.25, MargenUtilidad = 0.50 WHERE Id = @productoId;
 
+-- La descripcion tambien se reaplica: el INSERT de arriba solo corre en una base
+-- vacia, asi que una base ya creada seguiria anunciando la version anterior (la
+-- de pulsera, con Bluetooth y fotopletismografia) que es justo lo que se corrigio.
+UPDATE Productos
+SET Descripcion = N'Manga biométrica que mide tu actividad galvánica y tu ritmo cardíaco para generar tu aura digital.',
+    DescripcionLarga = N'CORSYNC es una manga que se coloca en el antebrazo y lee de forma continua dos señales de tu cuerpo: la actividad electrodermal de tu piel, mediante el sensor MCU-6701, y tu ritmo cardíaco, mediante el sensor MAX30102. Ambas señales viajan por Wi-Fi a la aplicación móvil, donde se traducen en un aura: una representación de color que refleja tu estado en ese momento. El aura se puede guardar, revisar en tu historial y compartir con las personas que elijas.'
+WHERE Id = @productoId;
+
 -- Explosion de materiales: una pieza de cada insumo por manga.
 DELETE FROM RecetasProductos WHERE ProductoId = @productoId;
 INSERT INTO RecetasProductos (ProductoId, NombreProducto, MateriaPrimaId, CantidadRequerida, MermaPorcentaje)
@@ -559,7 +567,7 @@ INSERT INTO EspecificacionesProductos (ProductoId, Grupo, Campo, Valor, Orden) V
 DECLARE @clienteId INT = (SELECT TOP 1 Id FROM Usuarios WHERE Username = 'cliente');
 IF @clienteId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ComprasClientes WHERE UsuarioId = @clienteId)
     INSERT INTO ComprasClientes (UsuarioId, ProductoId, Folio, Cantidad, Monto, Estado, NumeroSerie, Resenado, FechaCompra)
-    VALUES (@clienteId, @productoId, 'VTA-2026-0001', 1, 2044.05, N'Entregado', 'CS-2026-000418', 0, DATEADD(day, -25, GETUTCDATE()));
+    VALUES (@clienteId, @productoId, 'VTA-2026-0001', 1, 2044.05, N'Procesando', 'CS-2026-000418', 0, DATEADD(day, -25, GETUTCDATE()));
 ";
     }
 }
