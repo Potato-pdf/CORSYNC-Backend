@@ -48,3 +48,12 @@ _ReSharper*/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Secretos. Las credenciales de SMTP y demas van en user secrets
+# (dotnet user-secrets), fuera del repositorio, o en variables de entorno.
+# Estos patrones son una red de seguridad por si alguien las escribe a mano.
+.env
+.env.*
+secrets.json
+appsettings.Local.json
+appsettings.*.Local.json

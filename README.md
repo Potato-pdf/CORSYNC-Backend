@@ -320,6 +320,39 @@ No hay que ejecutar `dotnet ef database update`: no hay migraciones que aplicar.
 * `Cors:Origins` es una lista blanca. `http://localhost:4200` ya viene permitido por código para desarrollo; en producción hay que añadir aquí el dominio del sitio, o el navegador bloqueará las llamadas.
 * `Smtp:Habilitado` en `false` deja los correos registrados en la tabla `CorreosEnviados`, consultables desde `/admin/correos`. Poniéndolo en `true` con credenciales válidas, el envío pasa a ser real sin tocar código.
 
+### Correo: cómo dar de alta las credenciales
+
+**La contraseña no va en ningún `appsettings.json`.** Los dos se versionan —
+incluido `appsettings.Development.json`— así que una contraseña ahí termina
+publicada en GitHub. En desarrollo se usan *user secrets*, que se guardan en el
+perfil del usuario (`%APPDATA%\Microsoft\UserSecrets\corsync-api-smtp\`) y nunca
+entran al repositorio:
+
+```bash
+cd Src/CORSYNC.Api
+dotnet user-secrets set "Smtp:Habilitado" "true"
+dotnet user-secrets set "Smtp:Host" "smtp.gmail.com"
+dotnet user-secrets set "Smtp:Port" "587"
+dotnet user-secrets set "Smtp:EnableSsl" "true"
+dotnet user-secrets set "Smtp:User" "tu-cuenta@gmail.com"
+dotnet user-secrets set "Smtp:Password" "xxxx xxxx xxxx xxxx"
+dotnet user-secrets set "Smtp:From" "tu-cuenta@gmail.com"
+```
+
+Con Gmail hay que usar una **contraseña de aplicación** (Cuenta de Google →
+Seguridad → Verificación en dos pasos → Contraseñas de aplicaciones), no la
+contraseña normal de la cuenta: el SMTP de Gmail rechaza esta última. El valor
+de 16 caracteres funciona con o sin los espacios.
+
+`dotnet user-secrets list` muestra lo guardado y `dotnet user-secrets clear` lo
+borra. Los secretos sólo se cargan cuando `ASPNETCORE_ENVIRONMENT=Development`;
+**en producción se usan variables de entorno** (`Smtp__Password`, etc.) o el
+almacén de secretos del hospedaje.
+
+Para comprobar que quedó bien, da de alta un usuario desde el panel con un correo
+tuyo: la respuesta trae `correoEnviado: true` y la bitácora `/admin/correos`
+marca el renglón como **Enviado** en vez de **Simulado**.
+
 ### Variables de entorno
 
 Cualquier valor de `appsettings.json` puede sobrescribirse con variables de entorno usando `__` como separador de nivel:

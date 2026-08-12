@@ -4,6 +4,13 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!--
+      Las credenciales SMTP se guardan con "dotnet user-secrets", fuera del
+      repositorio, porque appsettings.Development.json si se versiona y una
+      contrasena de aplicacion ahi acabaria publicada en GitHub.
+      Ver la seccion "Correo" del README para darlas de alta.
+    -->
+    <UserSecretsId>corsync-api-smtp</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
