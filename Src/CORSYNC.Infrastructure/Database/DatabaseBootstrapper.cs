@@ -388,6 +388,14 @@ IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Regulador de voltaj
     INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
     VALUES (N'Regulador de voltaje LM2596', N'Regulador que estabiliza la salida de la batería de 9V hacia los sensores y el MCU.', 95.60, N'pieza', 600, 150, @provPcb, 1);
 
+IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Electrodos de metal (GSR)')
+    INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
+    VALUES (N'Electrodos de metal (GSR)', N'Electrodos metálicos de contacto directo con la piel para la lectura de conductancia electrodermal.', 2.50, N'pieza', 1000, 200, @provSilicon, 1);
+
+IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Cables de protoboard (jumpers)')
+    INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
+    VALUES (N'Cables de protoboard (jumpers)', N'Juego de cables jumper de conexión rápida para interconectar los sensores y el ESP32.', 1.50, N'pieza', 1500, 300, @provPcb, 1);
+
 -- Insumos que salieron del diseño de la manga. Los renglones 1 a 5 ya fueron
 -- reconvertidos arriba, asi que aqui solo caen los que quedaron sueltos del
 -- catalogo anterior. Se limpian sus dependencias antes de borrarlos para no
@@ -400,7 +408,6 @@ WHERE Nombre IN (
     N'Tela elástica para manga',
     N'Carcasa de plástico impresa en 3D',
     N'Pila recargable de 9V',
-    N'Electrodos de acero inoxidable 316L',
     N'PCB flexible de 4 capas',
     N'Cargador magnético inalámbrico',
     N'Empaque premium y manual impreso');
@@ -410,9 +417,9 @@ DELETE FROM DetallesCompraProveedor WHERE MateriaPrimaId IN (SELECT Id FROM @obs
 DELETE FROM MateriasPrimas WHERE Id IN (SELECT Id FROM @obsoletos);
 
 -- Producto unico: la manga CORSYNC.
--- Costo primo: materia prima 879.79 + mano de obra 60.00 = 939.79
--- Gastos indirectos 25% = 234.95 -> costo unitario 1,174.74
--- Margen 50% -> precio de lista 1,762.11
+-- Costo primo: materia prima 893.79 + mano de obra 60.00 = 953.79
+-- Gastos indirectos 25% = 238.45 -> costo unitario 1,192.24
+-- Margen 50% -> precio de lista 1,788.36
 IF NOT EXISTS (SELECT 1 FROM Productos WHERE Nombre = N'CORSYNC')
     INSERT INTO Productos (Nombre, Descripcion, DescripcionLarga, ManoObraUnitaria, OverheadPorcentaje, MargenUtilidad, Activo, FechaCreacion)
     VALUES (
@@ -435,10 +442,15 @@ SET Descripcion = N'Manga biométrica que mide tu actividad galvánica y tu ritm
     DescripcionLarga = N'CORSYNC es una manga que se coloca en el antebrazo y lee de forma continua dos señales de tu cuerpo: la actividad electrodermal de tu piel, mediante el sensor MCU-6701, y tu ritmo cardíaco, mediante el sensor MAX30102. Ambas señales viajan por Wi-Fi a la aplicación móvil, donde se traducen en un aura: una representación de color que refleja tu estado en ese momento. El aura se puede guardar, revisar en tu historial y compartir con las personas que elijas.'
 WHERE Id = @productoId;
 
--- Explosion de materiales: una pieza de cada insumo por manga.
+-- Explosion de materiales por manga.
 DELETE FROM RecetasProductos WHERE ProductoId = @productoId;
 INSERT INTO RecetasProductos (ProductoId, NombreProducto, MateriaPrimaId, CantidadRequerida, MermaPorcentaje)
-SELECT @productoId, N'CORSYNC', Id, 1, 0
+SELECT @productoId, N'CORSYNC', Id,
+       CASE 
+           WHEN Nombre = N'Electrodos de metal (GSR)' THEN 2
+           WHEN Nombre = N'Cables de protoboard (jumpers)' THEN 6
+           ELSE 1
+       END, 0
 FROM MateriasPrimas
 WHERE Nombre IN (
     N'Carcasa impresa en 3D',
@@ -447,7 +459,9 @@ WHERE Nombre IN (
     N'Módulo ESP32 (MCU + Wi-Fi)',
     N'Batería recargable de 9V (500 mAh)',
     N'Módulo indicador de carga XW228DKFR4',
-    N'Regulador de voltaje LM2596');
+    N'Regulador de voltaje LM2596',
+    N'Electrodos de metal (GSR)',
+    N'Cables de protoboard (jumpers)');
 
 -- Recetas del producto anterior (espejo) que ya no forman parte del catalogo.
 DELETE FROM RecetasProductos WHERE ProductoId <> @productoId;
@@ -469,8 +483,8 @@ BEGIN
     OUTPUT INSERTED.Folio, INSERTED.ProveedorId, INSERTED.Id INTO @compras
     VALUES
         (@provMaxim,   N'OC-2026-0001', 278937.20, N'Recibida', N'Lote inicial de sensores y microcontroladores.', DATEADD(day, -80, GETUTCDATE()), DATEADD(day, -73, GETUTCDATE())),
-        (@provSilicon, N'OC-2026-0002',  80000.00, N'Recibida', N'Carcasas impresas en 3D del primer lote.',       DATEADD(day, -78, GETUTCDATE()), DATEADD(day, -70, GETUTCDATE())),
-        (@provPcb,     N'OC-2026-0003', 105360.00, N'Recibida', N'Regulación y control de carga.',                 DATEADD(day, -76, GETUTCDATE()), DATEADD(day, -65, GETUTCDATE())),
+        (@provSilicon, N'OC-2026-0002',  82500.00, N'Recibida', N'Carcasas impresas en 3D y electrodos de metal del primer lote.', DATEADD(day, -78, GETUTCDATE()), DATEADD(day, -70, GETUTCDATE())),
+        (@provPcb,     N'OC-2026-0003', 107610.00, N'Recibida', N'Regulación, control de carga y cables de protoboard.', DATEADD(day, -76, GETUTCDATE()), DATEADD(day, -65, GETUTCDATE())),
         (@provBat,     N'OC-2026-0004', 135000.00, N'Recibida', N'Baterías recargables de 9V.',                    DATEADD(day, -74, GETUTCDATE()), DATEADD(day, -67, GETUTCDATE()));
 
     -- Los renglones se arman contra el catalogo por nombre, para que apunten a los
@@ -482,8 +496,10 @@ BEGIN
         (N'OC-2026-0001', N'Sensor MAX30102',                      700, CAST( 64.24 AS DECIMAL(18,4))),
         (N'OC-2026-0001', N'Módulo ESP32 (MCU + Wi-Fi)',           520, CAST(129.99 AS DECIMAL(18,4))),
         (N'OC-2026-0002', N'Carcasa impresa en 3D',                800, CAST(100.00 AS DECIMAL(18,4))),
+        (N'OC-2026-0002', N'Electrodos de metal (GSR)',           1000, CAST(  2.50 AS DECIMAL(18,4))),
         (N'OC-2026-0003', N'Módulo indicador de carga XW228DKFR4', 600, CAST( 80.00 AS DECIMAL(18,4))),
         (N'OC-2026-0003', N'Regulador de voltaje LM2596',          600, CAST( 95.60 AS DECIMAL(18,4))),
+        (N'OC-2026-0003', N'Cables de protoboard (jumpers)',      1500, CAST(  1.50 AS DECIMAL(18,4))),
         (N'OC-2026-0004', N'Batería recargable de 9V (500 mAh)',   900, CAST(150.00 AS DECIMAL(18,4)))
     ) AS d (Folio, Insumo, Cantidad, CostoUnitario)
     JOIN @compras c ON c.Folio = d.Folio
@@ -491,12 +507,17 @@ BEGIN
 END
 
 -- Documentacion del producto
+UPDATE DocumentosProductos SET Peso = '153 KB' WHERE Titulo = N'Manual de usuario CORSYNC' AND ProductoId = @productoId;
+UPDATE DocumentosProductos SET Peso = '69 KB' WHERE Titulo = N'Guía de inicio rápido' AND ProductoId = @productoId;
+UPDATE DocumentosProductos SET Peso = '168 KB' WHERE Titulo = N'Ficha técnica' AND ProductoId = @productoId;
+UPDATE DocumentosProductos SET Peso = '107 KB' WHERE Titulo = N'Póliza de garantía' AND ProductoId = @productoId;
+
 IF NOT EXISTS (SELECT 1 FROM DocumentosProductos WHERE ProductoId = @productoId)
     INSERT INTO DocumentosProductos (ProductoId, Titulo, Descripcion, Tipo, Url, Peso, FechaPublicacion) VALUES
-    (@productoId, N'Manual de usuario CORSYNC', N'Guía completa de uso, cuidados y solución de problemas de la manga.', N'Manual', '/docs/corsync-manual-usuario.pdf', '4.2 MB', GETUTCDATE()),
-    (@productoId, N'Guía de inicio rápido', N'Primeros pasos: encendido, conexión Wi-Fi y primera lectura de aura.', N'Guia', '/docs/corsync-inicio-rapido.pdf', '1.1 MB', GETUTCDATE()),
-    (@productoId, N'Ficha técnica', N'Especificaciones de sensores, autonomía, materiales y conectividad.', N'FichaTecnica', '/docs/corsync-ficha-tecnica.pdf', '820 KB', GETUTCDATE()),
-    (@productoId, N'Póliza de garantía', N'Cobertura de 2 años por defectos de fabricación y proceso de devolución.', N'Garantia', '/docs/corsync-garantia.pdf', '310 KB', GETUTCDATE());
+    (@productoId, N'Manual de usuario CORSYNC', N'Guía completa de uso, cuidados y solución de problemas de la manga.', N'Manual', '/docs/corsync-manual-usuario.pdf', '153 KB', GETUTCDATE()),
+    (@productoId, N'Guía de inicio rápido', N'Primeros pasos: encendido, conexión Wi-Fi y primera lectura de aura.', N'Guia', '/docs/corsync-inicio-rapido.pdf', '69 KB', GETUTCDATE()),
+    (@productoId, N'Ficha técnica', N'Especificaciones de sensores, autonomía, materiales y conectividad.', N'FichaTecnica', '/docs/corsync-ficha-tecnica.pdf', '168 KB', GETUTCDATE()),
+    (@productoId, N'Póliza de garantía', N'Cobertura de 2 años por defectos de fabricación y proceso de devolución.', N'Garantia', '/docs/corsync-garantia.pdf', '107 KB', GETUTCDATE());
 
 -- Preguntas frecuentes
 IF NOT EXISTS (SELECT 1 FROM PreguntasFrecuentes)

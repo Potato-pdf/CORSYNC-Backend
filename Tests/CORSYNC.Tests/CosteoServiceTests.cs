@@ -27,7 +27,8 @@ namespace CORSYNC.Tests
         }
 
         // Ids del catalogo: 1 carcasa 3D, 2 MCU-6701, 3 MAX30102, 4 ESP32,
-        // 5 bateria 9V, 6 indicador de carga, 7 regulador de voltaje.
+        // 5 bateria 9V, 6 indicador de carga, 7 regulador de voltaje,
+        // 8 electrodos metal, 9 cables protoboard.
         private const int Esp32 = 4;
         private const int Max30102 = 3;
 
@@ -41,13 +42,13 @@ namespace CORSYNC.Tests
 
             Assert.NotNull(costo);
             Assert.Equal("CORSYNC", costo!.Producto);
-            Assert.Equal(7, costo.Materiales.Count);
-            // 100.00 + 259.96 + 64.24 + 129.99 + 150.00 + 80.00 + 95.60
-            Assert.Equal(879.79m, costo.CostoMateriaPrima);
-            Assert.Equal(939.79m, costo.CostoPrimo);      // + mano de obra 60.00
-            Assert.Equal(234.95m, costo.CostoIndirecto);  // 25% del costo primo
-            Assert.Equal(1174.74m, costo.CostoUnitario);
-            Assert.Equal(1762.11m, costo.PrecioLista);    // margen 50%
+            Assert.Equal(9, costo.Materiales.Count);
+            // 100.00 + 259.96 + 64.24 + 129.99 + 150.00 + 80.00 + 95.60 + (2.50*2) + (1.50*6) = 893.79
+            Assert.Equal(893.79m, costo.CostoMateriaPrima);
+            Assert.Equal(953.79m, costo.CostoPrimo);      // + mano de obra 60.00
+            Assert.Equal(238.45m, costo.CostoIndirecto);  // 25% del costo primo (238.4475 -> 238.45)
+            Assert.Equal(1192.24m, costo.CostoUnitario);
+            Assert.Equal(1788.36m, costo.PrecioLista);    // margen 50%
         }
 
         [Fact]
@@ -80,7 +81,7 @@ namespace CORSYNC.Tests
             var carcasa = costo!.Materiales.Single(m => m.MateriaPrimaId == 1);
             Assert.Equal(1.1m, carcasa.CantidadConMerma);
             Assert.Equal(110.00m, carcasa.CostoTotal);        // 1.1 x 100.00
-            Assert.Equal(889.79m, costo.CostoMateriaPrima);   // 879.79 - 100.00 + 110.00
+            Assert.Equal(903.79m, costo.CostoMateriaPrima);   // 893.79 - 100.00 + 110.00
         }
 
         [Fact]
@@ -142,8 +143,8 @@ namespace CORSYNC.Tests
             Assert.Equal(150.00m, esp32!.CostoUnidad);
 
             var costo = await servicio.CalcularCostoProductoAsync(1);
-            Assert.Equal(899.80m, costo!.CostoMateriaPrima);   // 879.79 + 20.01
-            Assert.True(costo.PrecioLista > 1762.11m);
+            Assert.Equal(913.80m, costo!.CostoMateriaPrima);   // 893.79 + 20.01
+            Assert.True(costo.PrecioLista > 1788.36m);
         }
 
         [Fact]
@@ -218,8 +219,8 @@ namespace CORSYNC.Tests
             Assert.NotNull(consumo);
             Assert.True(consumo!.Aplicado);
             Assert.Empty(consumo.Faltantes);
-            Assert.Equal(7, consumo.Salidas.Count);
-            Assert.Equal(2639.37m, consumo.CostoMateriaPrimaConsumida); // 879.79 x 3
+            Assert.Equal(9, consumo.Salidas.Count);
+            Assert.Equal(2681.37m, consumo.CostoMateriaPrimaConsumida); // 893.79 x 3
 
             var esp32 = await context.MateriasPrimas.FindAsync(Esp32);
             Assert.Equal(517m, esp32!.Stock);          // 520 - 3

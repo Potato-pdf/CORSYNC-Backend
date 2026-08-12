@@ -287,6 +287,7 @@ app.UseSwaggerUI(c =>
 var rutaWebRoot = app.Environment.WebRootPath
     ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
 Directory.CreateDirectory(Path.Combine(rutaWebRoot, "uploads", "productos"));
+Directory.CreateDirectory(Path.Combine(rutaWebRoot, "docs"));
 app.UseStaticFiles();
 
 app.UseRouting();

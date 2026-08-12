@@ -268,12 +268,14 @@ namespace CORSYNC.Infrastructure.Database
                 new MateriaPrima { Id = 4, Nombre = "Módulo ESP32 (MCU + Wi-Fi)", Descripcion = "Microcontrolador con Wi-Fi integrado; es el que transmite las lecturas a la app.", CostoUnidad = 129.99m, UnidadMedida = "pieza", Stock = 520, StockMinimo = 120, ProveedorId = 1, Activo = true },
                 new MateriaPrima { Id = 5, Nombre = "Batería recargable de 9V (500 mAh)", Descripcion = "Batería recargable de 9V y 500 mAh que alimenta la manga durante la sesión de medición.", CostoUnidad = 150.00m, UnidadMedida = "pieza", Stock = 900, StockMinimo = 250, ProveedorId = 4, Activo = true },
                 new MateriaPrima { Id = 6, Nombre = "Módulo indicador de carga XW228DKFR4", Descripcion = "Módulo indicador del nivel de carga de la batería.", CostoUnidad = 80.00m, UnidadMedida = "pieza", Stock = 600, StockMinimo = 150, ProveedorId = 3, Activo = true },
-                new MateriaPrima { Id = 7, Nombre = "Regulador de voltaje LM2596", Descripcion = "Regulador que estabiliza la salida de la batería de 9V hacia los sensores y el MCU.", CostoUnidad = 95.60m, UnidadMedida = "pieza", Stock = 600, StockMinimo = 150, ProveedorId = 3, Activo = true }
+                new MateriaPrima { Id = 7, Nombre = "Regulador de voltaje LM2596", Descripcion = "Regulador que estabiliza la salida de la batería de 9V hacia los sensores y el MCU.", CostoUnidad = 95.60m, UnidadMedida = "pieza", Stock = 600, StockMinimo = 150, ProveedorId = 3, Activo = true },
+                new MateriaPrima { Id = 8, Nombre = "Electrodos de metal (GSR)", Descripcion = "Electrodos metálicos de contacto directo con la piel para la lectura de conductancia electrodermal.", CostoUnidad = 2.50m, UnidadMedida = "pieza", Stock = 1000, StockMinimo = 200, ProveedorId = 2, Activo = true },
+                new MateriaPrima { Id = 9, Nombre = "Cables de protoboard (jumpers)", Descripcion = "Juego de cables jumper de conexión rápida para interconectar los sensores y el ESP32.", CostoUnidad = 1.50m, UnidadMedida = "pieza", Stock = 1500, StockMinimo = 300, ProveedorId = 3, Activo = true }
             );
 
-            // Costo primo: materia prima 879.79 + mano de obra 60.00 = 939.79
-            // Gastos indirectos 25% = 234.95  ->  costo unitario 1,174.74
-            // Margen 50%                      ->  precio de lista 1,762.11
+            // Costo primo: materia prima 893.79 + mano de obra 60.00 = 953.79
+            // Gastos indirectos 25% = 238.45  ->  costo unitario 1,192.24
+            // Margen 50%                      ->  precio de lista 1,788.36
             modelBuilder.Entity<Producto>().HasData(
                 new Producto
                 {
@@ -300,22 +302,23 @@ namespace CORSYNC.Infrastructure.Database
                 new RecetaProducto { Id = 4, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 4, CantidadRequerida = 1, MermaPorcentaje = 0 },
                 new RecetaProducto { Id = 5, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 5, CantidadRequerida = 1, MermaPorcentaje = 0 },
                 new RecetaProducto { Id = 6, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 6, CantidadRequerida = 1, MermaPorcentaje = 0 },
-                new RecetaProducto { Id = 7, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 7, CantidadRequerida = 1, MermaPorcentaje = 0 }
+                new RecetaProducto { Id = 7, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 7, CantidadRequerida = 1, MermaPorcentaje = 0 },
+                new RecetaProducto { Id = 8, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 8, CantidadRequerida = 2, MermaPorcentaje = 0 },
+                new RecetaProducto { Id = 9, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 9, CantidadRequerida = 6, MermaPorcentaje = 0 }
             );
 
             // Ordenes de compra que dan origen al inventario. Sin ellas el stock y el
             // costo promedio de arriba aparecerian de la nada, sin respaldo en el
             // modulo de compras. Cada renglon cuadra exactamente con las existencias
-            // y el costo unitario sembrados, de modo que el valor del inventario
-            // (599,297.20) es la suma de estas cuatro ordenes.
+            // y el costo unitario sembrados.
             //
             // Van como "Recibida": ya afectaron el inventario. El endpoint de
             // recepcion rechaza recibir una compra que ya lo esta, asi que no pueden
             // volver a sumar stock desde el panel.
             modelBuilder.Entity<CompraProveedor>().HasData(
                 new CompraProveedor { Id = 1, ProveedorId = 1, Folio = "OC-2026-0001", MontoTotal = 278937.20m, Estado = "Recibida", Notas = "Lote inicial de sensores y microcontroladores.", FechaCompra = alta.AddDays(20), FechaRecepcion = alta.AddDays(27) },
-                new CompraProveedor { Id = 2, ProveedorId = 2, Folio = "OC-2026-0002", MontoTotal = 80000.00m, Estado = "Recibida", Notas = "Carcasas impresas en 3D del primer lote.", FechaCompra = alta.AddDays(22), FechaRecepcion = alta.AddDays(30) },
-                new CompraProveedor { Id = 3, ProveedorId = 3, Folio = "OC-2026-0003", MontoTotal = 105360.00m, Estado = "Recibida", Notas = "Regulación y control de carga.", FechaCompra = alta.AddDays(24), FechaRecepcion = alta.AddDays(35) },
+                new CompraProveedor { Id = 2, ProveedorId = 2, Folio = "OC-2026-0002", MontoTotal = 82500.00m, Estado = "Recibida", Notas = "Carcasas impresas en 3D y electrodos de metal del primer lote.", FechaCompra = alta.AddDays(22), FechaRecepcion = alta.AddDays(30) },
+                new CompraProveedor { Id = 3, ProveedorId = 3, Folio = "OC-2026-0003", MontoTotal = 107610.00m, Estado = "Recibida", Notas = "Regulación, control de carga y cables de protoboard.", FechaCompra = alta.AddDays(24), FechaRecepcion = alta.AddDays(35) },
                 new CompraProveedor { Id = 4, ProveedorId = 4, Folio = "OC-2026-0004", MontoTotal = 135000.00m, Estado = "Recibida", Notas = "Baterías recargables de 9V.", FechaCompra = alta.AddDays(26), FechaRecepcion = alta.AddDays(33) }
             );
 
@@ -326,7 +329,9 @@ namespace CORSYNC.Infrastructure.Database
                 new DetalleCompraProveedor { Id = 4, CompraProveedorId = 2, MateriaPrimaId = 1, Cantidad = 800, CostoUnitario = 100.00m, Importe = 80000.00m },
                 new DetalleCompraProveedor { Id = 5, CompraProveedorId = 3, MateriaPrimaId = 6, Cantidad = 600, CostoUnitario = 80.00m, Importe = 48000.00m },
                 new DetalleCompraProveedor { Id = 6, CompraProveedorId = 3, MateriaPrimaId = 7, Cantidad = 600, CostoUnitario = 95.60m, Importe = 57360.00m },
-                new DetalleCompraProveedor { Id = 7, CompraProveedorId = 4, MateriaPrimaId = 5, Cantidad = 900, CostoUnitario = 150.00m, Importe = 135000.00m }
+                new DetalleCompraProveedor { Id = 7, CompraProveedorId = 4, MateriaPrimaId = 5, Cantidad = 900, CostoUnitario = 150.00m, Importe = 135000.00m },
+                new DetalleCompraProveedor { Id = 8, CompraProveedorId = 2, MateriaPrimaId = 8, Cantidad = 1000, CostoUnitario = 2.50m, Importe = 2500.00m },
+                new DetalleCompraProveedor { Id = 9, CompraProveedorId = 3, MateriaPrimaId = 9, Cantidad = 1500, CostoUnitario = 1.50m, Importe = 2250.00m }
             );
 
             // Galeria del producto. Estas imagenes viven en el repositorio bajo
@@ -375,10 +380,10 @@ namespace CORSYNC.Infrastructure.Database
             );
 
             modelBuilder.Entity<DocumentoProducto>().HasData(
-                new DocumentoProducto { Id = 1, ProductoId = 1, Titulo = "Manual de usuario CORSYNC", Descripcion = "Guía completa de uso, cuidados y solución de problemas de la manga.", Tipo = "Manual", Url = "/docs/corsync-manual-usuario.pdf", Peso = "4.2 MB", FechaPublicacion = alta },
-                new DocumentoProducto { Id = 2, ProductoId = 1, Titulo = "Guía de inicio rápido", Descripcion = "Primeros pasos: encendido, conexión Wi-Fi y primera lectura de aura.", Tipo = "Guia", Url = "/docs/corsync-inicio-rapido.pdf", Peso = "1.1 MB", FechaPublicacion = alta },
-                new DocumentoProducto { Id = 3, ProductoId = 1, Titulo = "Ficha técnica", Descripcion = "Especificaciones de sensores, autonomía, materiales y conectividad.", Tipo = "FichaTecnica", Url = "/docs/corsync-ficha-tecnica.pdf", Peso = "820 KB", FechaPublicacion = alta },
-                new DocumentoProducto { Id = 4, ProductoId = 1, Titulo = "Póliza de garantía", Descripcion = "Cobertura de 2 años por defectos de fabricación y proceso de devolución.", Tipo = "Garantia", Url = "/docs/corsync-garantia.pdf", Peso = "310 KB", FechaPublicacion = alta }
+                new DocumentoProducto { Id = 1, ProductoId = 1, Titulo = "Manual de usuario CORSYNC", Descripcion = "Guía completa de uso, cuidados y solución de problemas de la manga.", Tipo = "Manual", Url = "/docs/corsync-manual-usuario.pdf", Peso = "153 KB", FechaPublicacion = alta },
+                new DocumentoProducto { Id = 2, ProductoId = 1, Titulo = "Guía de inicio rápido", Descripcion = "Primeros pasos: encendido, conexión Wi-Fi y primera lectura de aura.", Tipo = "Guia", Url = "/docs/corsync-inicio-rapido.pdf", Peso = "69 KB", FechaPublicacion = alta },
+                new DocumentoProducto { Id = 3, ProductoId = 1, Titulo = "Ficha técnica", Descripcion = "Especificaciones de sensores, autonomía, materiales y conectividad.", Tipo = "FichaTecnica", Url = "/docs/corsync-ficha-tecnica.pdf", Peso = "168 KB", FechaPublicacion = alta },
+                new DocumentoProducto { Id = 4, ProductoId = 1, Titulo = "Póliza de garantía", Descripcion = "Cobertura de 2 años por defectos de fabricación y proceso de devolución.", Tipo = "Garantia", Url = "/docs/corsync-garantia.pdf", Peso = "107 KB", FechaPublicacion = alta }
             );
 
             // Valoraciones ya moderadas, para que la sección pública no nazca vacía.
