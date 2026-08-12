@@ -151,7 +151,9 @@ namespace CORSYNC.Infrastructure.Costing
             {
                 ProductoId = producto.Id,
                 Producto = producto.Nombre,
-                Unidades = unidades
+                Unidades = unidades,
+                StockProductoAnterior = producto.Stock,
+                StockProductoNuevo = producto.Stock
             };
 
             if (receta.Count == 0)
@@ -194,6 +196,12 @@ namespace CORSYNC.Infrastructure.Costing
             {
                 respuesta.Salidas.Add(AplicarSalida(insumo, requerido));
             }
+
+            // La materia prima consumida se convierte en producto terminado: lo que
+            // sale de un almacen entra en el otro. Sin esto el inventario de insumos
+            // bajaria sin que apareciera nada disponible para vender.
+            producto.Stock += unidades;
+            respuesta.StockProductoNuevo = producto.Stock;
 
             respuesta.CostoMateriaPrimaConsumida = Math.Round(
                 respuesta.Salidas.Sum(s => s.ImporteSalida), 2, MidpointRounding.AwayFromZero);

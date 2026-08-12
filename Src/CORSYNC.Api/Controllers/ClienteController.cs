@@ -196,6 +196,18 @@ namespace CORSYNC.Api.Controllers
                 return NotFound("Producto no encontrado.");
             }
 
+            // La venta sale del almacen de producto terminado, que solo se llena
+            // registrando produccion. Vender sin existencias comprometeria unidades
+            // que todavia no se han fabricado.
+            if (request.Cantidad > producto.Stock)
+            {
+                return BadRequest(
+                    $"No hay unidades suficientes: se piden {request.Cantidad} y hay {producto.Stock} " +
+                    "en almacén. Registra producción antes de vender.");
+            }
+
+            producto.Stock -= request.Cantidad;
+
             var ahora = DateTime.UtcNow;
             var compra = new CompraCliente
             {
@@ -240,6 +252,37 @@ namespace CORSYNC.Api.Controllers
                 return BadRequest("Estado inválido. Usa Procesando, Enviado, Entregado o Cancelado.");
             }
 
+            // Cancelar devuelve las unidades al almacen, y reactivar una venta
+            // cancelada las vuelve a tomar. Sin esto, cancelar perderia inventario
+            // ya fabricado y reactivar lo entregaria dos veces.
+            const string Cancelado = "Cancelado";
+            bool estabaCancelada = compra.Estado == Cancelado;
+            bool quedaCancelada = estado == Cancelado;
+
+            if (!estabaCancelada && quedaCancelada)
+            {
+                var producto = await _context.Productos.FindAsync(compra.ProductoId);
+                if (producto != null)
+                {
+                    producto.Stock += compra.Cantidad;
+                }
+            }
+            else if (estabaCancelada && !quedaCancelada)
+            {
+                var producto = await _context.Productos.FindAsync(compra.ProductoId);
+                if (producto == null)
+                {
+                    return NotFound("Producto no encontrado.");
+                }
+                if (compra.Cantidad > producto.Stock)
+                {
+                    return BadRequest(
+                        $"No se puede reactivar la venta: requiere {compra.Cantidad} unidades y hay " +
+                        $"{producto.Stock} en almacén.");
+                }
+                producto.Stock -= compra.Cantidad;
+            }
+
             compra.Estado = estado;
             await _context.SaveChangesAsync();
             return Ok(compra);
@@ -253,6 +296,17 @@ namespace CORSYNC.Api.Controllers
             if (compra == null)
             {
                 return NotFound("Compra no encontrada.");
+            }
+
+            // Una venta cancelada ya devolvio sus unidades al cancelarse; solo se
+            // reponen las que seguian descontadas.
+            if (compra.Estado != "Cancelado")
+            {
+                var producto = await _context.Productos.FindAsync(compra.ProductoId);
+                if (producto != null)
+                {
+                    producto.Stock += compra.Cantidad;
+                }
             }
 
             _context.ComprasClientes.Remove(compra);

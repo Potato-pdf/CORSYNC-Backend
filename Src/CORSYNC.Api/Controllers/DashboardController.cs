@@ -56,6 +56,10 @@ namespace CORSYNC.Api.Controllers
                 InsumosBajoMinimo = insumos.Count(i => i.Stock < i.StockMinimo),
                 ValorInventario = Math.Round(insumos.Sum(i => i.Stock * i.CostoUnidad), 2),
                 UnidadesFabricables = costo?.UnidadesFabricables ?? 0,
+                StockProducto = await _context.Productos
+                    .Where(p => p.Id == ProductoCorsyncId)
+                    .Select(p => p.Stock)
+                    .FirstOrDefaultAsync(),
                 CostoUnitarioProducto = costo?.CostoUnitario ?? 0m,
                 PrecioListaProducto = costo?.PrecioLista ?? 0m
             };

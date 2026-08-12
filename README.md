@@ -541,6 +541,49 @@ Saldo ÷ Existencias = costo promedio
    compra → vuelve a recalcular
 ```
 
+### Ciclo de inventario: de la compra a la venta
+
+Son **dos almacenes distintos** y cada operación mueve uno u otro:
+
+```
+Compra a proveedor  ──► [ ALMACÉN DE MATERIA PRIMA ]   (+ entrada, recalcula promedio)
+                                   │
+                         Registrar producción
+                         (explosiona la receta)
+                                   │
+                                   ▼
+                        [ ALMACÉN DE PRODUCTO TERMINADO ]   Productos.Stock
+                                   │
+                            Registrar venta
+                                   │
+                                   ▼
+                                Cliente
+```
+
+| Operación | Materia prima | Producto terminado |
+|---|---|---|
+| Recibir compra a proveedor | **+** | — |
+| Registrar producción | **−** (receta × merma) | **+** |
+| Registrar venta a cliente | — | **−** |
+| Cancelar o eliminar una venta | — | **+** (devuelve) |
+| **Cotizar** | — | — |
+
+Reglas que sostienen el ciclo:
+
+* **Cotizar no mueve inventario.** Una cotización es una oferta, no un compromiso:
+  si descontara, cualquier visitante del sitio público vaciaría el almacén pidiendo
+  precio.
+* **No se puede vender lo que no se ha fabricado.** Registrar una venta por encima
+  de las existencias devuelve `400` y no descuenta nada.
+* **La producción es atómica.** Se valida el consumo de *todos* los insumos antes de
+  tocar el inventario; si falta uno, no se descuenta ninguno y la respuesta detalla
+  cuáles faltaron.
+* **Cancelar devuelve, reactivar vuelve a tomar.** Una venta cancelada repone sus
+  unidades, y sacarla de "Cancelado" las descuenta otra vez (fallando si ya no
+  alcanzan). Cancelar dos veces no duplica la devolución.
+
+Cubierto por `InventarioProductoTests.cs`.
+
 Importes en MXN, con el costo real de compra de cada componente:
 
 | Concepto | Importe |

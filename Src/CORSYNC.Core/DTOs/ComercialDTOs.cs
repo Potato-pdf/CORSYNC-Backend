@@ -264,6 +264,11 @@ namespace CORSYNC.Core.DTOs
         public List<SalidaCosteoResponse> Salidas { get; set; } = new List<SalidaCosteoResponse>();
         /// <summary>Suma de las salidas valuadas al promedio.</summary>
         public decimal CostoMateriaPrimaConsumida { get; set; }
+
+        /// <summary>Unidades terminadas que habia antes de fabricar.</summary>
+        public int StockProductoAnterior { get; set; }
+        /// <summary>Unidades terminadas disponibles despues de fabricar.</summary>
+        public int StockProductoNuevo { get; set; }
     }
 
     // ---------------------------------------------------------------------
@@ -447,6 +452,8 @@ namespace CORSYNC.Core.DTOs
         public int InsumosBajoMinimo { get; set; }
         public decimal ValorInventario { get; set; }
         public int UnidadesFabricables { get; set; }
+        /// <summary>Unidades ya fabricadas y disponibles para vender.</summary>
+        public int StockProducto { get; set; }
         public decimal CostoUnitarioProducto { get; set; }
         public decimal PrecioListaProducto { get; set; }
     }

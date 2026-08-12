@@ -285,6 +285,10 @@ namespace CORSYNC.Infrastructure.Database
                     OverheadPorcentaje = 0.25m,
                     MargenUtilidad = 0.50m,
                     Activo = true,
+                    // Lote inicial fabricado menos la venta de demostracion de mas
+                    // abajo: 25 - 1 = 24. Sin existencias, esa venta sembrada seria
+                    // una que el propio sistema habria rechazado por falta de stock.
+                    Stock = 24,
                     FechaCreacion = alta
                 }
             );

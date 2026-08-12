@@ -35,6 +35,16 @@ namespace CORSYNC.Core.Domain
         [Column(TypeName = "decimal(9,4)")]
         public decimal MargenUtilidad { get; set; } = 0.40m;
 
+        /// <summary>
+        /// Unidades terminadas disponibles para venta.
+        ///
+        /// Es un almacen distinto al de materia prima: sube al registrar produccion
+        /// (que a su vez consume los insumos de la receta) y baja al registrar una
+        /// venta. Asi el inventario refleja el ciclo completo compra -> fabricacion
+        /// -> venta, en lugar de crecer indefinidamente.
+        /// </summary>
+        public int Stock { get; set; }
+
         public bool Activo { get; set; } = true;
 
         public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;

@@ -104,8 +104,14 @@ IF NOT EXISTS (SELECT * FROM sysobjects WHERE name = 'Productos' AND xtype = 'U'
         OverheadPorcentaje  DECIMAL(9,4)   NOT NULL DEFAULT 0.25,
         MargenUtilidad      DECIMAL(9,4)   NOT NULL DEFAULT 0.40,
         Activo              BIT            NOT NULL DEFAULT 1,
+        Stock               INT            NOT NULL DEFAULT 0,
         FechaCreacion       DATETIME2      NOT NULL DEFAULT GETUTCDATE()
     );
+
+-- Almacen de producto terminado. Sube con la produccion y baja con las ventas.
+-- Se agrega aparte para las bases creadas antes de existir esta columna.
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Productos') AND name = 'Stock')
+    ALTER TABLE Productos ADD Stock INT NOT NULL DEFAULT 0;
 
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('RecetasProductos') AND name = 'ProductoId')
     ALTER TABLE RecetasProductos ADD ProductoId INT NOT NULL DEFAULT 1;
@@ -354,11 +360,23 @@ DECLARE @provBat INT = (SELECT TOP 1 Id FROM Proveedores WHERE Nombre = N'Bater�
 -- ponderado de arranque; las recepciones de compra lo van promediando. Los Ids 1
 -- a 5 se reconvierten en su lugar para que coincidan con el seed de EF, y los dos
 -- modulos restantes se dan de alta por nombre.
-UPDATE MateriasPrimas SET Nombre = N'Carcasa impresa en 3D', Descripcion = N'Carcasa impresa en 3D en filamento PLA, diseñada a medida para alojar los sensores.', CostoUnidad = 100.00, UnidadMedida = N'pieza', Stock = 800, StockMinimo = 200, ProveedorId = @provSilicon, Activo = 1 WHERE Id = 1;
-UPDATE MateriasPrimas SET Nombre = N'Sensor MCU-6701 (GSR)', Descripcion = N'Módulo de conductancia de la piel para medición de activación fisiológica.', CostoUnidad = 259.96, UnidadMedida = N'pieza', Stock = 640, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 2;
-UPDATE MateriasPrimas SET Nombre = N'Sensor MAX30102', Descripcion = N'Sensor de ritmo cardíaco y HRV.', CostoUnidad = 64.24, UnidadMedida = N'pieza', Stock = 700, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 3;
-UPDATE MateriasPrimas SET Nombre = N'Módulo ESP32 (MCU + Wi-Fi)', Descripcion = N'Microcontrolador con Wi-Fi integrado; es el que transmite las lecturas a la app.', CostoUnidad = 129.99, UnidadMedida = N'pieza', Stock = 520, StockMinimo = 120, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 4;
-UPDATE MateriasPrimas SET Nombre = N'Batería recargable de 9V (500 mAh)', Descripcion = N'Batería recargable de 9V y 500 mAh que alimenta la manga durante la sesión de medición.', CostoUnidad = 150.00, UnidadMedida = N'pieza', Stock = 900, StockMinimo = 250, ProveedorId = @provBat, Activo = 1 WHERE Id = 5;
+-- Valores OPERATIVOS (existencias y costo promedio): se siembran una sola vez.
+-- El guardia es el nombre viejo, que solo coincide antes de reconvertir el
+-- renglon. Reaplicarlos en cada arranque borraria las recepciones de compra, la
+-- produccion registrada y el costo promedio que esas compras fueron formando.
+UPDATE MateriasPrimas SET CostoUnidad = 100.00, Stock = 800 WHERE Id = 1 AND Nombre <> N'Carcasa impresa en 3D';
+UPDATE MateriasPrimas SET CostoUnidad = 259.96, Stock = 640 WHERE Id = 2 AND Nombre <> N'Sensor MCU-6701 (GSR)';
+UPDATE MateriasPrimas SET CostoUnidad = 64.24,  Stock = 700 WHERE Id = 3 AND Nombre <> N'Sensor MAX30102';
+UPDATE MateriasPrimas SET CostoUnidad = 129.99, Stock = 520 WHERE Id = 4 AND Nombre <> N'Módulo ESP32 (MCU + Wi-Fi)';
+UPDATE MateriasPrimas SET CostoUnidad = 150.00, Stock = 900 WHERE Id = 5 AND Nombre <> N'Batería recargable de 9V (500 mAh)';
+
+-- Datos DESCRIPTIVOS: se reaplican siempre, porque son correcciones de catalogo
+-- y no arrastran informacion de inventario.
+UPDATE MateriasPrimas SET Nombre = N'Carcasa impresa en 3D', Descripcion = N'Carcasa impresa en 3D en filamento PLA, diseñada a medida para alojar los sensores.', UnidadMedida = N'pieza', StockMinimo = 200, ProveedorId = @provSilicon, Activo = 1 WHERE Id = 1;
+UPDATE MateriasPrimas SET Nombre = N'Sensor MCU-6701 (GSR)', Descripcion = N'Módulo de conductancia de la piel para medición de activación fisiológica.', UnidadMedida = N'pieza', StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 2;
+UPDATE MateriasPrimas SET Nombre = N'Sensor MAX30102', Descripcion = N'Sensor de ritmo cardíaco y HRV.', UnidadMedida = N'pieza', StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 3;
+UPDATE MateriasPrimas SET Nombre = N'Módulo ESP32 (MCU + Wi-Fi)', Descripcion = N'Microcontrolador con Wi-Fi integrado; es el que transmite las lecturas a la app.', UnidadMedida = N'pieza', StockMinimo = 120, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 4;
+UPDATE MateriasPrimas SET Nombre = N'Batería recargable de 9V (500 mAh)', Descripcion = N'Batería recargable de 9V y 500 mAh que alimenta la manga durante la sesión de medición.', UnidadMedida = N'pieza', StockMinimo = 250, ProveedorId = @provBat, Activo = 1 WHERE Id = 5;
 
 IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Módulo indicador de carga XW228DKFR4')
     INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
@@ -563,11 +581,24 @@ INSERT INTO EspecificacionesProductos (ProductoId, Grupo, Campo, Valor, Orden) V
     (@productoId, N'Sistema', N'Indicador de carga', N'XW228DKFR4', 15),
     (@productoId, N'Sistema', N'Compatibilidad', N'iOS 14+ · Android 11+', 17);
 
--- Compra de demostracion para el cliente de prueba.
+-- Lote inicial fabricado y compra de demostracion para el cliente de prueba.
+--
+-- Van juntos a proposito: sin producto terminado en almacen no se puede registrar
+-- ninguna venta, asi que una base recien creada nacia con una venta de demostracion
+-- que el propio sistema habria rechazado. Se siembra el lote y la venta descuenta
+-- de el, igual que cualquier otra: 25 fabricadas - 1 vendida = 24 disponibles.
+--
+-- Todo el bloque corre una sola vez; despues manda la produccion real.
 DECLARE @clienteId INT = (SELECT TOP 1 Id FROM Usuarios WHERE Username = 'cliente');
 IF @clienteId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ComprasClientes WHERE UsuarioId = @clienteId)
+BEGIN
+    UPDATE Productos SET Stock = Stock + 25 WHERE Id = @productoId;
+
     INSERT INTO ComprasClientes (UsuarioId, ProductoId, Folio, Cantidad, Monto, Estado, NumeroSerie, Resenado, FechaCompra)
     VALUES (@clienteId, @productoId, 'VTA-2026-0001', 1, 2044.05, N'Procesando', 'CS-2026-000418', 0, DATEADD(day, -25, GETUTCDATE()));
+
+    UPDATE Productos SET Stock = Stock - 1 WHERE Id = @productoId;
+END
 ";
     }
 }

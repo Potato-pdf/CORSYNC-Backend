@@ -62,6 +62,7 @@ namespace CORSYNC.Api.Controllers
                     producto.Descripcion,
                     producto.DescripcionLarga,
                     producto.Activo,
+                    producto.Stock,
                     PrecioLista = costo?.PrecioLista ?? 0m,
                     CostoUnitario = costo?.CostoUnitario ?? 0m,
                     ImagenPortada = portadas.TryGetValue(producto.Id, out var url) ? url : null
@@ -123,6 +124,7 @@ namespace CORSYNC.Api.Controllers
                 producto.Descripcion,
                 producto.DescripcionLarga,
                 producto.Activo,
+                producto.Stock,
                 PrecioLista = costo?.PrecioLista ?? 0m,
                 CostoUnitario = costo?.CostoUnitario ?? 0m,
                 Documentos = documentos,
