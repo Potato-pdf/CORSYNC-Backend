@@ -417,9 +417,9 @@ DELETE FROM DetallesCompraProveedor WHERE MateriaPrimaId IN (SELECT Id FROM @obs
 DELETE FROM MateriasPrimas WHERE Id IN (SELECT Id FROM @obsoletos);
 
 -- Producto unico: la manga CORSYNC.
--- Costo primo: materia prima 893.79 + mano de obra 60.00 = 953.79
--- Gastos indirectos 25% = 238.45 -> costo unitario 1,192.24
--- Margen 50% -> precio de lista 1,788.36
+-- Costo primo: materia prima 914.79 + mano de obra 60.00 = 974.79
+-- Gastos indirectos 25% = 243.70 -> costo unitario 1,218.49
+-- Margen 50% -> precio de lista 1,827.74
 IF NOT EXISTS (SELECT 1 FROM Productos WHERE Nombre = N'CORSYNC')
     INSERT INTO Productos (Nombre, Descripcion, DescripcionLarga, ManoObraUnitaria, OverheadPorcentaje, MargenUtilidad, Activo, FechaCreacion)
     VALUES (
@@ -448,7 +448,7 @@ INSERT INTO RecetasProductos (ProductoId, NombreProducto, MateriaPrimaId, Cantid
 SELECT @productoId, N'CORSYNC', Id,
        CASE 
            WHEN Nombre = N'Electrodos de metal (GSR)' THEN 2
-           WHEN Nombre = N'Cables de protoboard (jumpers)' THEN 6
+           WHEN Nombre = N'Cables de protoboard (jumpers)' THEN 20
            ELSE 1
        END, 0
 FROM MateriasPrimas

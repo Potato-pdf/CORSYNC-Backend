@@ -273,9 +273,9 @@ namespace CORSYNC.Infrastructure.Database
                 new MateriaPrima { Id = 9, Nombre = "Cables de protoboard (jumpers)", Descripcion = "Juego de cables jumper de conexión rápida para interconectar los sensores y el ESP32.", CostoUnidad = 1.50m, UnidadMedida = "pieza", Stock = 1500, StockMinimo = 300, ProveedorId = 3, Activo = true }
             );
 
-            // Costo primo: materia prima 893.79 + mano de obra 60.00 = 953.79
-            // Gastos indirectos 25% = 238.45  ->  costo unitario 1,192.24
-            // Margen 50%                      ->  precio de lista 1,788.36
+            // Costo primo: materia prima 914.79 + mano de obra 60.00 = 974.79
+            // Gastos indirectos 25% = 243.70  ->  costo unitario 1,218.49
+            // Margen 50%                      ->  precio de lista 1,827.74
             modelBuilder.Entity<Producto>().HasData(
                 new Producto
                 {
@@ -304,7 +304,7 @@ namespace CORSYNC.Infrastructure.Database
                 new RecetaProducto { Id = 6, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 6, CantidadRequerida = 1, MermaPorcentaje = 0 },
                 new RecetaProducto { Id = 7, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 7, CantidadRequerida = 1, MermaPorcentaje = 0 },
                 new RecetaProducto { Id = 8, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 8, CantidadRequerida = 2, MermaPorcentaje = 0 },
-                new RecetaProducto { Id = 9, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 9, CantidadRequerida = 6, MermaPorcentaje = 0 }
+                new RecetaProducto { Id = 9, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 9, CantidadRequerida = 20, MermaPorcentaje = 0 }
             );
 
             // Ordenes de compra que dan origen al inventario. Sin ellas el stock y el
