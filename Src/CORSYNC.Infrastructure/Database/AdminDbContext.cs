@@ -285,7 +285,10 @@ namespace CORSYNC.Infrastructure.Database
                     DescripcionLarga = "CORSYNC es una manga que se coloca en el antebrazo y lee de forma continua dos señales de tu cuerpo: la actividad electrodermal de tu piel, mediante el sensor MCU-6701, y tu ritmo cardíaco, mediante el sensor MAX30102. Ambas señales viajan por Wi-Fi a la aplicación móvil, donde se traducen en un aura: una representación de color que refleja tu estado en ese momento. El aura se puede guardar, revisar en tu historial y compartir con las personas que elijas.",
                     ManoObraUnitaria = 60.00m,
                     OverheadPorcentaje = 0.25m,
-                    MargenUtilidad = 0.50m,
+                    // 40% sobre el costo unitario absorbido. Equivale al 50% sobre el
+                    // costo primo de la hoja de costeo: con 25% de indirectos,
+                    // 974.79 x 0.50 y 1218.4875 x 0.40 dan la misma utilidad (487.395).
+                    MargenUtilidad = 0.40m,
                     Activo = true,
                     // Lote inicial fabricado menos la venta de demostracion de mas
                     // abajo: 25 - 1 = 24. Sin existencias, esa venta sembrada seria

@@ -586,19 +586,41 @@ Cubierto por `InventarioProductoTests.cs`.
 
 Importes en MXN, con el costo real de compra de cada componente:
 
-| Concepto | Importe |
-| :--- | ---: |
-| Materia prima (7 insumos) | $879.79 |
-| Mano de obra directa | $60.00 |
-| **Costo primo** | **$939.79** |
-| Gastos indirectos (25 %) | $234.95 |
-| **Costo unitario** | **$1,174.74** |
-| Margen de utilidad (50 %) | $587.37 |
-| **Precio de lista** | **$1,762.11** |
+| Cant. | Concepto | Costo unit. | Importe |
+| ---: | :--- | ---: | ---: |
+| 1 | Tarjeta ESP32 | $129.99 | $129.99 |
+| 1 | Sensor MCU-6701 | $259.96 | $259.96 |
+| 1 | Sensor MAX30102 | $64.24 | $64.24 |
+| 1 | Batería 9V recargable | $150.00 | $150.00 |
+| 1 | Regulador de voltaje LM2596 | $95.60 | $95.60 |
+| 1 | Módulo indicador de carga XW228DKFR4 | $80.00 | $80.00 |
+| 1 | Carcasa impresa en 3D | $100.00 | $100.00 |
+| 20 | Cables | $1.50 | $30.00 |
+| 2 | Electrodos | $2.50 | $5.00 |
+| | **Materia prima** | | **$914.79** |
+| | Mano de obra directa | | $60.00 |
+| | **Costo primo** | | **$974.79** |
+| | Gastos indirectos (25 %) | | $243.6975 |
+| | **Costo unitario** | | **$1,218.4875** |
+| | Margen de utilidad (40 %) | | $487.395 |
+| | **Precio de lista** | | **$1,705.8825** |
+| | IVA (16 %) | | $272.9412 |
+| | **Total con IVA** | | **$1,978.8237** |
+
+> **Sobre el 40 %.** La hoja de costeo de la empresa expresa la utilidad como
+> *50 % del costo primo*; el sistema la aplica como *40 % del costo unitario*.
+> Son la misma cifra —$487.395— porque los indirectos son el 25 %:
+> `974.79 × 0.50 = 1218.4875 × 0.40`. Se usa la segunda forma porque es la
+> estándar en costeo absorbente: el margen se calcula sobre el costo ya
+> absorbido. **Ojo:** la equivalencia sólo se sostiene mientras el overhead sea
+> del 25 %; si cambia, hay que recalcular el porcentaje de margen.
+
+Los pasos intermedios se llevan a **4 decimales** para no arrastrar el redondeo
+hasta el precio de lista; el redondeo a centavos se hace al cobrar.
 
 Licencias: Individual ×1.00 · Corporativa ×0.90 · Enterprise ×0.83
 Descuentos por volumen: 10 % desde 5 uds · 15 % desde 15 · tope de 100 uds por cotización
-IVA: 16 %
+IVA: 16 % **sobre el precio de venta**, nunca sobre un costo interno.
 
 Implementado en `CosteoService.cs` y `ReglasComerciales` (en `ICosteoService.cs`), y cubierto por `CosteoServiceTests.cs` y `CotizacionControllerTests.cs`.
 

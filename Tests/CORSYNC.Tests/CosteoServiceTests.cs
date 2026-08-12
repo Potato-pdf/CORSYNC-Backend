@@ -43,12 +43,17 @@ namespace CORSYNC.Tests
             Assert.NotNull(costo);
             Assert.Equal("CORSYNC", costo!.Producto);
             Assert.Equal(9, costo.Materiales.Count);
+            // Las cifras son las de la hoja de costeo de la empresa. Los pasos
+            // intermedios van a 4 decimales para no arrastrar el redondeo hasta
+            // el precio de lista.
             // 100.00 + 259.96 + 64.24 + 129.99 + 150.00 + 80.00 + 95.60 + (2.50*2) + (1.50*20) = 914.79
             Assert.Equal(914.79m, costo.CostoMateriaPrima);
-            Assert.Equal(974.79m, costo.CostoPrimo);      // + mano de obra 60.00
-            Assert.Equal(243.70m, costo.CostoIndirecto);  // 25% del costo primo (243.6975 -> 243.70)
-            Assert.Equal(1218.49m, costo.CostoUnitario);
-            Assert.Equal(1827.74m, costo.PrecioLista);    // margen 50%
+            Assert.Equal(974.79m, costo.CostoPrimo);        // + mano de obra 60.00
+            Assert.Equal(243.6975m, costo.CostoIndirecto);  // 25% del costo primo
+            Assert.Equal(1218.4875m, costo.CostoUnitario);
+            // Margen 40% sobre el costo unitario = 487.395, la misma utilidad que
+            // el 50% sobre el costo primo que aplica la hoja de costeo.
+            Assert.Equal(1705.8825m, costo.PrecioLista);
         }
 
         [Fact]
@@ -144,7 +149,7 @@ namespace CORSYNC.Tests
 
             var costo = await servicio.CalcularCostoProductoAsync(1);
             Assert.Equal(934.80m, costo!.CostoMateriaPrima);   // 914.79 + 20.01
-            Assert.True(costo.PrecioLista > 1827.74m);
+            Assert.True(costo.PrecioLista > 1705.8825m);
         }
 
         [Fact]

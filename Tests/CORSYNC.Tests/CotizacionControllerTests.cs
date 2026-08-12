@@ -21,10 +21,12 @@ namespace CORSYNC.Tests
         // Explosion de materiales sembrada: 100.00 + 259.96 + 64.24 + 129.99
         //                                  + 150.00 + 80.00 + 95.60 + (2.50*2) + (1.50*20) = 914.79
         private const decimal CostoMateriaPrima = 914.79m;
-        private const decimal ManoObra = 60.00m;           // costo primo = 974.79
-        private const decimal CostoIndirecto = 243.70m;    // 25% del costo primo (243.6975 -> 243.70)
-        private const decimal CostoUnitario = 1218.49m;
-        private const decimal PrecioLista = 1827.74m;      // margen 50% (1218.4875 * 1.50 = 1827.73125 -> round AwayFromZero = 1827.74)
+        private const decimal ManoObra = 60.00m;             // costo primo = 974.79
+        private const decimal CostoIndirecto = 243.6975m;    // 25% del costo primo
+        private const decimal CostoUnitario = 1218.4875m;
+        // Margen 40% sobre el costo unitario = 487.395 de utilidad, la misma cifra
+        // que el 50% sobre el costo primo de la hoja de costeo.
+        private const decimal PrecioLista = 1705.8825m;
 
         private static AdminDbContext GetDbContext()
         {
@@ -66,13 +68,14 @@ namespace CORSYNC.Tests
             Assert.Equal(CostoIndirecto, cotizacion.CostoIndirecto);
             Assert.Equal(CostoUnitario, cotizacion.CostoUnitario);
             Assert.Equal(PrecioLista, cotizacion.PrecioLista);
-            Assert.Equal(PrecioLista, cotizacion.PrecioUnitario);
+            // El precio que se cobra si se redondea a centavos: 1,705.8825 -> 1,705.88
+            Assert.Equal(1705.88m, cotizacion.PrecioUnitario);
 
-            // Sin descuento por volumen y sin servicios: total = 1,827.74 + 16% IVA
+            // Sin descuento por volumen y sin servicios: total = 1,705.88 + 16% IVA
             Assert.Equal(0m, cotizacion.DescuentoPorcentaje);
-            Assert.Equal(1827.74m, cotizacion.Subtotal);
-            Assert.Equal(292.44m, cotizacion.Impuestos);
-            Assert.Equal(2120.18m, cotizacion.Total);
+            Assert.Equal(1705.88m, cotizacion.Subtotal);
+            Assert.Equal(272.94m, cotizacion.Impuestos);
+            Assert.Equal(1978.82m, cotizacion.Total);
         }
 
         [Fact]
@@ -89,12 +92,12 @@ namespace CORSYNC.Tests
             var okResult = Assert.IsType<OkObjectResult>(actionResult);
             var cotizacion = Assert.IsType<CotizacionResponse>(okResult.Value);
 
-            // 1,827.74 x 10 = 18,277.40, descuento 10% = 1,827.74, base = 16,449.66
+            // 1,705.88 x 10 = 17,058.80, descuento 10% = 1,705.88, base = 15,352.92
             Assert.Equal(0.10m, cotizacion.DescuentoPorcentaje);
-            Assert.Equal(18277.40m, cotizacion.Subtotal);
-            Assert.Equal(1827.74m, cotizacion.DescuentoMonto);
-            Assert.Equal(2631.95m, cotizacion.Impuestos);
-            Assert.Equal(19081.61m, cotizacion.Total);
+            Assert.Equal(17058.80m, cotizacion.Subtotal);
+            Assert.Equal(1705.88m, cotizacion.DescuentoMonto);
+            Assert.Equal(2456.47m, cotizacion.Impuestos);
+            Assert.Equal(17809.39m, cotizacion.Total);
         }
 
         [Fact]
@@ -113,21 +116,21 @@ namespace CORSYNC.Tests
             var okResult = Assert.IsType<OkObjectResult>(actionResult);
             var cotizacion = Assert.IsType<CotizacionResponse>(okResult.Value);
 
-            // Enterprise: 1,827.74 x 0.83 = 1,517.0242 -> 1,517.02 por unidad
-            Assert.Equal(1517.02m, cotizacion.PrecioUnitario);
-            Assert.Equal(151702.00m, cotizacion.Subtotal);
+            // Enterprise: 1,705.8825 x 0.83 = 1,415.882475 -> 1,415.88 por unidad
+            Assert.Equal(1415.88m, cotizacion.PrecioUnitario);
+            Assert.Equal(141588.00m, cotizacion.Subtotal);
 
             // 100 unidades: cae en el tramo mas alto vigente (15% desde 15 uds)
             Assert.Equal(0.15m, cotizacion.DescuentoPorcentaje);
-            Assert.Equal(22755.30m, cotizacion.DescuentoMonto);
+            Assert.Equal(21238.20m, cotizacion.DescuentoMonto);
 
             // Servicios: soporte premium 49 + API 99 = 148
             Assert.Equal(2, cotizacion.Servicios.Count);
             Assert.Equal(148m, cotizacion.TotalServicios);
 
-            // Base = 151,702.00 - 22,755.30 + 148.00 = 129,094.70
-            Assert.Equal(20655.15m, cotizacion.Impuestos);
-            Assert.Equal(149749.85m, cotizacion.Total);
+            // Base = 141,588.00 - 21,238.20 + 148.00 = 120,497.80
+            Assert.Equal(19279.65m, cotizacion.Impuestos);
+            Assert.Equal(139777.45m, cotizacion.Total);
         }
 
         // -----------------------------------------------------------------
@@ -453,7 +456,7 @@ namespace CORSYNC.Tests
             Assert.Equal("Cliente Prueba", guardada.NombreCliente);
             Assert.Equal("Nueva", guardada.Estado);
             Assert.StartsWith("COT-", guardada.Folio);
-            Assert.Equal(2120.18m, guardada.CostoTotal);
+            Assert.Equal(1978.82m, guardada.CostoTotal);
         }
     }
 }

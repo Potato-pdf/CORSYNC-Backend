@@ -55,7 +55,8 @@ namespace CORSYNC.Infrastructure.Costing
 
                 // La merma incrementa el consumo real de cada insumo por unidad producida.
                 decimal cantidadConMerma = renglon.CantidadRequerida * (1 + renglon.MermaPorcentaje);
-                decimal costoTotal = Math.Round(cantidadConMerma * insumo.CostoUnidad, 2, MidpointRounding.AwayFromZero);
+                // 4 decimales tambien en el renglon: es el sumando de la materia prima.
+                decimal costoTotal = Math.Round(cantidadConMerma * insumo.CostoUnidad, 4, MidpointRounding.AwayFromZero);
 
                 int posibles = cantidadConMerma > 0
                     ? (int)Math.Floor(insumo.Stock / cantidadConMerma)
@@ -78,11 +79,15 @@ namespace CORSYNC.Infrastructure.Costing
                 });
             }
 
-            respuesta.CostoMateriaPrima = Math.Round(respuesta.Materiales.Sum(m => m.CostoTotal), 2, MidpointRounding.AwayFromZero);
-            respuesta.CostoPrimo = Math.Round(respuesta.CostoMateriaPrima + respuesta.CostoManoObra, 2, MidpointRounding.AwayFromZero);
-            respuesta.CostoIndirecto = Math.Round(respuesta.CostoPrimo * producto.OverheadPorcentaje, 2, MidpointRounding.AwayFromZero);
-            respuesta.CostoUnitario = Math.Round(respuesta.CostoPrimo + respuesta.CostoIndirecto, 2, MidpointRounding.AwayFromZero);
-            respuesta.PrecioLista = Math.Round(respuesta.CostoUnitario * (1 + producto.MargenUtilidad), 2, MidpointRounding.AwayFromZero);
+            // Los pasos intermedios se llevan a 4 decimales, no a 2: redondear a
+            // centavos en cada escalon arrastra el error hasta el precio de lista y
+            // descuadra contra la hoja de costeo, que trabaja con la cifra completa.
+            // El redondeo a centavos se hace al final, sobre el precio de lista.
+            respuesta.CostoMateriaPrima = Math.Round(respuesta.Materiales.Sum(m => m.CostoTotal), 4, MidpointRounding.AwayFromZero);
+            respuesta.CostoPrimo = Math.Round(respuesta.CostoMateriaPrima + respuesta.CostoManoObra, 4, MidpointRounding.AwayFromZero);
+            respuesta.CostoIndirecto = Math.Round(respuesta.CostoPrimo * producto.OverheadPorcentaje, 4, MidpointRounding.AwayFromZero);
+            respuesta.CostoUnitario = Math.Round(respuesta.CostoPrimo + respuesta.CostoIndirecto, 4, MidpointRounding.AwayFromZero);
+            respuesta.PrecioLista = Math.Round(respuesta.CostoUnitario * (1 + producto.MargenUtilidad), 4, MidpointRounding.AwayFromZero);
             respuesta.UnidadesFabricables = receta.Count == 0 || unidadesFabricables == int.MaxValue ? 0 : Math.Max(unidadesFabricables, 0);
 
             return respuesta;

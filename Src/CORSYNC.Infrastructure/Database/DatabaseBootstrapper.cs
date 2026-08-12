@@ -418,21 +418,25 @@ DELETE FROM MateriasPrimas WHERE Id IN (SELECT Id FROM @obsoletos);
 
 -- Producto unico: la manga CORSYNC.
 -- Costo primo: materia prima 914.79 + mano de obra 60.00 = 974.79
--- Gastos indirectos 25% = 243.70 -> costo unitario 1,218.49
--- Margen 50% -> precio de lista 1,827.74
+-- Gastos indirectos 25% = 243.6975 -> costo unitario 1,218.4875
+-- Margen 40% sobre el costo unitario = 487.395 de utilidad
+-- Precio de lista = 1,705.8825
+--
+-- El 40% sobre el costo unitario equivale al 50% sobre el costo primo que usa la
+-- hoja de costeo: con 25% de indirectos, 974.79 x 0.50 = 1218.4875 x 0.40.
 IF NOT EXISTS (SELECT 1 FROM Productos WHERE Nombre = N'CORSYNC')
     INSERT INTO Productos (Nombre, Descripcion, DescripcionLarga, ManoObraUnitaria, OverheadPorcentaje, MargenUtilidad, Activo, FechaCreacion)
     VALUES (
         N'CORSYNC',
         N'Manga biométrica que mide tu actividad galvánica y tu ritmo cardíaco para generar tu aura digital.',
         N'CORSYNC es una manga que se coloca en el antebrazo y lee de forma continua dos señales de tu cuerpo: la actividad electrodermal de tu piel, mediante el sensor MCU-6701, y tu ritmo cardíaco, mediante el sensor MAX30102. Ambas señales viajan por Wi-Fi a la aplicación móvil, donde se traducen en un aura: una representación de color que refleja tu estado en ese momento. El aura se puede guardar, revisar en tu historial y compartir con las personas que elijas.',
-        60.00, 0.25, 0.50, 1, GETUTCDATE());
+        60.00, 0.25, 0.40, 1, GETUTCDATE());
 
 DECLARE @productoId INT = (SELECT TOP 1 Id FROM Productos WHERE Nombre = N'CORSYNC');
 
 -- Parametros de costeo vigentes. Se reaplican en cada arranque para que una base
 -- creada con los valores anteriores quede alineada con el seed de EF.
-UPDATE Productos SET ManoObraUnitaria = 60.00, OverheadPorcentaje = 0.25, MargenUtilidad = 0.50 WHERE Id = @productoId;
+UPDATE Productos SET ManoObraUnitaria = 60.00, OverheadPorcentaje = 0.25, MargenUtilidad = 0.40 WHERE Id = @productoId;
 
 -- La descripcion tambien se reaplica: el INSERT de arriba solo corre en una base
 -- vacia, asi que una base ya creada seguiria anunciando la version anterior (la
