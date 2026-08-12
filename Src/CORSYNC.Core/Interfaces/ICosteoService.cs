@@ -22,6 +22,21 @@ namespace CORSYNC.Core.Interfaces
         /// (stock * costo actual + cantidad recibida * costo de compra) / stock total.
         /// </summary>
         Task<ImpactoCosteoResponse?> RegistrarEntradaInventarioAsync(int materiaPrimaId, decimal cantidad, decimal costoCompra);
+
+        /// <summary>
+        /// Descuenta existencias valuandolas al ultimo costo promedio calculado. La
+        /// salida no altera el promedio: no importa de que compra salieron las
+        /// unidades, todas valen el promedio vigente. Devuelve null si el insumo no
+        /// existe, la cantidad no es positiva o no hay existencias suficientes.
+        /// </summary>
+        Task<SalidaCosteoResponse?> RegistrarSalidaInventarioAsync(int materiaPrimaId, decimal cantidad);
+
+        /// <summary>
+        /// Explosiona la receta y descuenta del inventario lo necesario para fabricar
+        /// las unidades pedidas, valuando cada salida al costo promedio vigente. Es
+        /// todo o nada: si falta un solo insumo no se descuenta ninguno.
+        /// </summary>
+        Task<ConsumoProduccionResponse?> RegistrarConsumoProduccionAsync(int productoId, int unidades);
     }
 
     /// <summary>Reglas comerciales de precio publicadas por el area de ventas de ThinkUp.</summary>

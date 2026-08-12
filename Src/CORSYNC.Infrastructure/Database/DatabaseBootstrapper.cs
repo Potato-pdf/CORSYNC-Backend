@@ -350,43 +350,61 @@ DECLARE @provSilicon INT = (SELECT TOP 1 Id FROM Proveedores WHERE Nombre = N'Si
 DECLARE @provPcb INT = (SELECT TOP 1 Id FROM Proveedores WHERE Nombre = N'NovaPCB Manufacturing');
 DECLARE @provBat INT = (SELECT TOP 1 Id FROM Proveedores WHERE Nombre = N'Baterías Litio del Norte');
 
--- Materia prima de la manga. Los Ids 1 a 5 provienen del catalogo anterior
--- (componentes de espejo) y se reconvierten; el resto se da de alta.
-UPDATE MateriasPrimas SET Nombre = N'Tela elástica para manga', Descripcion = N'Tejido elástico hipoalergénico que sostiene los sensores contra el antebrazo.', CostoUnidad = 3.10, UnidadMedida = N'pieza', Stock = 1200, StockMinimo = 300, ProveedorId = @provSilicon, Activo = 1 WHERE Id = 1;
-UPDATE MateriasPrimas SET Nombre = N'Carcasa de plástico impresa en 3D', Descripcion = N'Carcasa impresa en 3D en filamento plástico, diseñada a medida para alojar los sensores.', CostoUnidad = 9.80, UnidadMedida = N'pieza', Stock = 800, StockMinimo = 200, ProveedorId = @provSilicon, Activo = 1 WHERE Id = 2;
-UPDATE MateriasPrimas SET Nombre = N'Sensor MCU-6701 (GSR)', Descripcion = N'Módulo de conductancia de la piel para medición de activación fisiológica.', CostoUnidad = 6.50, UnidadMedida = N'pieza', Stock = 640, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 3;
-UPDATE MateriasPrimas SET Nombre = N'Sensor MAX30102', Descripcion = N'Sensor de ritmo cardíaco y HRV.', CostoUnidad = 8.00, UnidadMedida = N'pieza', Stock = 700, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 4;
-UPDATE MateriasPrimas SET Nombre = N'Módulo ESP32 (MCU + Wi-Fi)', Descripcion = N'Microcontrolador con Wi-Fi y Bluetooth integrados.', CostoUnidad = 12.00, UnidadMedida = N'pieza', Stock = 520, StockMinimo = 120, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 5;
+-- Materia prima de la manga, valuada en MXN. Cada importe es el costo promedio
+-- ponderado de arranque; las recepciones de compra lo van promediando. Los Ids 1
+-- a 5 se reconvierten en su lugar para que coincidan con el seed de EF, y los dos
+-- modulos restantes se dan de alta por nombre.
+UPDATE MateriasPrimas SET Nombre = N'Carcasa impresa en 3D', Descripcion = N'Carcasa impresa en 3D en filamento PLA, diseñada a medida para alojar los sensores.', CostoUnidad = 100.00, UnidadMedida = N'pieza', Stock = 800, StockMinimo = 200, ProveedorId = @provSilicon, Activo = 1 WHERE Id = 1;
+UPDATE MateriasPrimas SET Nombre = N'Sensor MCU-6701 (GSR)', Descripcion = N'Módulo de conductancia de la piel para medición de activación fisiológica.', CostoUnidad = 259.96, UnidadMedida = N'pieza', Stock = 640, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 2;
+UPDATE MateriasPrimas SET Nombre = N'Sensor MAX30102', Descripcion = N'Sensor de ritmo cardíaco y HRV.', CostoUnidad = 64.24, UnidadMedida = N'pieza', Stock = 700, StockMinimo = 150, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 3;
+UPDATE MateriasPrimas SET Nombre = N'Módulo ESP32 (MCU + Wi-Fi)', Descripcion = N'Microcontrolador con Wi-Fi y Bluetooth integrados.', CostoUnidad = 129.99, UnidadMedida = N'pieza', Stock = 520, StockMinimo = 120, ProveedorId = @provMaxim, Activo = 1 WHERE Id = 4;
+UPDATE MateriasPrimas SET Nombre = N'Batería recargable de 9V (500 mAh)', Descripcion = N'Batería recargable de 9V y 500 mAh que alimenta la manga durante la sesión de medición.', CostoUnidad = 150.00, UnidadMedida = N'pieza', Stock = 900, StockMinimo = 250, ProveedorId = @provBat, Activo = 1 WHERE Id = 5;
 
-IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Pila recargable de 9V')
+IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Módulo indicador de carga XW228DKFR4')
     INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
-    VALUES (N'Pila recargable de 9V', N'Pila recargable de 9V que alimenta la manga durante la sesión de medición.', 4.20, N'pieza', 900, 250, @provBat, 1);
-IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Electrodos de acero inoxidable 316L')
+    VALUES (N'Módulo indicador de carga XW228DKFR4', N'Módulo indicador del nivel de carga de la batería.', 80.00, N'pieza', 600, 150, @provPcb, 1);
+IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Regulador de voltaje')
     INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
-    VALUES (N'Electrodos de acero inoxidable 316L', N'Par de electrodos de contacto para la lectura galvánica.', 2.40, N'par', 1500, 300, @provSilicon, 1);
-IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'PCB flexible de 4 capas')
-    INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
-    VALUES (N'PCB flexible de 4 capas', N'Placa flexible que integra sensores, MCU y batería.', 7.60, N'pieza', 450, 150, @provPcb, 1);
-IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Cargador magnético inalámbrico')
-    INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
-    VALUES (N'Cargador magnético inalámbrico', N'Base de carga magnética con cable USB-C incluido.', 5.30, N'pieza', 600, 150, @provPcb, 1);
-IF NOT EXISTS (SELECT 1 FROM MateriasPrimas WHERE Nombre = N'Empaque premium y manual impreso')
-    INSERT INTO MateriasPrimas (Nombre, Descripcion, CostoUnidad, UnidadMedida, Stock, StockMinimo, ProveedorId, Activo)
-    VALUES (N'Empaque premium y manual impreso', N'Caja rígida, inserto de espuma y guía de inicio rápido.', 2.90, N'kit', 1000, 250, @provSilicon, 1);
+    VALUES (N'Regulador de voltaje', N'Regulador que estabiliza la salida de la batería de 9V hacia los sensores y el MCU.', 95.60, N'pieza', 600, 150, @provPcb, 1);
+
+-- Insumos que salieron del diseño de la manga. Los renglones 1 a 5 ya fueron
+-- reconvertidos arriba, asi que aqui solo caen los que quedaron sueltos del
+-- catalogo anterior. Se limpian sus dependencias antes de borrarlos para no
+-- dejar llaves foraneas huerfanas.
+DECLARE @obsoletos TABLE (Id INT);
+INSERT INTO @obsoletos (Id)
+SELECT Id FROM MateriasPrimas
+WHERE Nombre IN (
+    N'Correa de silicona hipoalergénica',
+    N'Tela elástica para manga',
+    N'Carcasa de plástico impresa en 3D',
+    N'Pila recargable de 9V',
+    N'Electrodos de acero inoxidable 316L',
+    N'PCB flexible de 4 capas',
+    N'Cargador magnético inalámbrico',
+    N'Empaque premium y manual impreso');
+
+DELETE FROM RecetasProductos WHERE MateriaPrimaId IN (SELECT Id FROM @obsoletos);
+DELETE FROM DetallesCompraProveedor WHERE MateriaPrimaId IN (SELECT Id FROM @obsoletos);
+DELETE FROM MateriasPrimas WHERE Id IN (SELECT Id FROM @obsoletos);
 
 -- Producto unico: la manga CORSYNC.
--- Costo primo objetivo: materia prima 61.80 + mano de obra 18.20 = 80.00
--- Gastos indirectos 25% = 20.00 -> costo unitario 100.00
--- Margen 199% -> precio de lista 299.00
+-- Costo primo: materia prima 879.79 + mano de obra 60.00 = 939.79
+-- Gastos indirectos 25% = 234.95 -> costo unitario 1,174.74
+-- Margen 50% -> precio de lista 1,762.11
 IF NOT EXISTS (SELECT 1 FROM Productos WHERE Nombre = N'CORSYNC')
     INSERT INTO Productos (Nombre, Descripcion, DescripcionLarga, ManoObraUnitaria, OverheadPorcentaje, MargenUtilidad, Activo, FechaCreacion)
     VALUES (
         N'CORSYNC',
         N'Manga biométrica que mide tu actividad galvánica y tu ritmo cardíaco para generar tu aura digital.',
         N'CORSYNC es una manga que se coloca en el antebrazo y lee de forma continua dos señales de tu cuerpo: la actividad electrodermal de tu piel, mediante el sensor MCU-6701, y tu ritmo cardíaco, mediante el sensor MAX30102. Ambas señales viajan por Wi-Fi a la aplicación móvil, donde se traducen en un aura: una representación de color que refleja tu estado en ese momento. El aura se puede guardar, revisar en tu historial y compartir con las personas que elijas.',
-        18.20, 0.25, 1.99, 1, GETUTCDATE());
+        60.00, 0.25, 0.50, 1, GETUTCDATE());
 
 DECLARE @productoId INT = (SELECT TOP 1 Id FROM Productos WHERE Nombre = N'CORSYNC');
+
+-- Parametros de costeo vigentes. Se reaplican en cada arranque para que una base
+-- creada con los valores anteriores quede alineada con el seed de EF.
+UPDATE Productos SET ManoObraUnitaria = 60.00, OverheadPorcentaje = 0.25, MargenUtilidad = 0.50 WHERE Id = @productoId;
 
 -- Explosion de materiales: una pieza de cada insumo por manga.
 DELETE FROM RecetasProductos WHERE ProductoId = @productoId;
@@ -394,16 +412,13 @@ INSERT INTO RecetasProductos (ProductoId, NombreProducto, MateriaPrimaId, Cantid
 SELECT @productoId, N'CORSYNC', Id, 1, 0
 FROM MateriasPrimas
 WHERE Nombre IN (
-    N'Tela elástica para manga',
-    N'Carcasa de plástico impresa en 3D',
+    N'Carcasa impresa en 3D',
     N'Sensor MCU-6701 (GSR)',
     N'Sensor MAX30102',
     N'Módulo ESP32 (MCU + Wi-Fi)',
-    N'Pila recargable de 9V',
-    N'Electrodos de acero inoxidable 316L',
-    N'PCB flexible de 4 capas',
-    N'Cargador magnético inalámbrico',
-    N'Empaque premium y manual impreso');
+    N'Batería recargable de 9V (500 mAh)',
+    N'Módulo indicador de carga XW228DKFR4',
+    N'Regulador de voltaje');
 
 -- Recetas del producto anterior (espejo) que ya no forman parte del catalogo.
 DELETE FROM RecetasProductos WHERE ProductoId <> @productoId;
@@ -468,12 +483,12 @@ IF NOT EXISTS (SELECT 1 FROM EspecificacionesProductos WHERE ProductoId = @produ
     -- Dimensiones, Correa, Resistencia y Carga se retiraron: no aplican a la
     -- manga o siguen pendientes del dato de fabricacion.
     (@productoId, N'Físicas', N'Peso', N'210 g', 2),
-    (@productoId, N'Físicas', N'Carcasa', N'Plástico de impresión 3D', 3),
+    (@productoId, N'Físicas', N'Carcasa', N'PLA de impresión 3D', 3),
     (@productoId, N'Sensores', N'Conductancia', N'MCU-6701', 6),
     (@productoId, N'Sensores', N'Pulso', N'MAX30102', 7),
     (@productoId, N'Sensores', N'Rango de pulso', N'30 – 220 BPM', 9),
     (@productoId, N'Sistema', N'Procesador', N'ESP32 con Wi-Fi y Bluetooth', 10),
-    (@productoId, N'Sistema', N'Batería', N'Pila recargable de 9V', 11),
+    (@productoId, N'Sistema', N'Batería', N'Recargable de 9V · 500 mAh', 11),
     (@productoId, N'Sistema', N'Autonomía', N'Hasta 5 horas de uso continuo', 12),
     (@productoId, N'Sistema', N'Compatibilidad', N'iOS 14+ · Android 11+', 14);
 
@@ -481,7 +496,7 @@ IF NOT EXISTS (SELECT 1 FROM EspecificacionesProductos WHERE ProductoId = @produ
 DECLARE @clienteId INT = (SELECT TOP 1 Id FROM Usuarios WHERE Username = 'cliente');
 IF @clienteId IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ComprasClientes WHERE UsuarioId = @clienteId)
     INSERT INTO ComprasClientes (UsuarioId, ProductoId, Folio, Cantidad, Monto, Estado, NumeroSerie, Resenado, FechaCompra)
-    VALUES (@clienteId, @productoId, 'VTA-2026-0001', 1, 346.84, N'Entregado', 'CS-2026-000418', 0, DATEADD(day, -25, GETUTCDATE()));
+    VALUES (@clienteId, @productoId, 'VTA-2026-0001', 1, 2044.05, N'Entregado', 'CS-2026-000418', 0, DATEADD(day, -25, GETUTCDATE()));
 ";
     }
 }

@@ -112,23 +112,31 @@ namespace CORSYNC.Api.Controllers
             materia.Nombre = input.Nombre.Trim();
             materia.Descripcion = input.Descripcion ?? string.Empty;
             materia.UnidadMedida = input.UnidadMedida ?? string.Empty;
-            materia.CostoUnidad = input.CostoUnidad;
-            materia.Stock = input.Stock;
             materia.StockMinimo = input.StockMinimo;
             materia.ProveedorId = input.ProveedorId;
             materia.Activo = input.Activo;
+
+            // CostoUnidad y Stock no se editan aqui: son el resultado del costo
+            // promedio ponderado. El costo solo cambia al recibir una compra y las
+            // existencias solo por una entrada, una salida o un ajuste explicito,
+            // que es donde queda registrado el motivo del movimiento.
 
             await _context.SaveChangesAsync();
             return Ok(materia);
         }
 
-        /// <summary>Ajuste manual de existencias (mermas, conteos fisicos).</summary>
+        /// <summary>
+        /// Ajuste manual de existencias (mermas, conteos fisicos). Al subir el stock
+        /// hay que declarar a que costo entran las unidades, porque una entrada sin
+        /// costo diluiria el promedio ponderado; las bajas se valuan al promedio
+        /// vigente, igual que cualquier otra salida.
+        /// </summary>
         [HttpPut("stock/{id}")]
-        public async Task<IActionResult> ActualizarStock(int id, [FromBody] decimal nuevoStock)
+        public async Task<IActionResult> ActualizarStock(int id, [FromBody] AjusteStockRequest request)
         {
-            if (nuevoStock < 0)
+            if (!ModelState.IsValid)
             {
-                return BadRequest("El stock no puede ser negativo.");
+                return BadRequest(ModelState);
             }
 
             var materia = await _context.MateriasPrimas.FindAsync(id);
@@ -137,10 +145,60 @@ namespace CORSYNC.Api.Controllers
                 return NotFound("Materia prima no encontrada.");
             }
 
-            materia.Stock = nuevoStock;
-            await _context.SaveChangesAsync();
+            decimal diferencia = request.NuevoStock - materia.Stock;
 
-            return Ok(materia);
+            if (diferencia == 0)
+            {
+                return Ok(new { Materia = materia, Message = "El stock ya tenía ese valor." });
+            }
+
+            if (diferencia > 0)
+            {
+                if (request.CostoUnitario is null)
+                {
+                    return BadRequest("Para aumentar las existencias indica el costo unitario de las unidades que entran; sin él no puede recalcularse el costo promedio.");
+                }
+
+                var entrada = await _costeo.RegistrarEntradaInventarioAsync(id, diferencia, request.CostoUnitario.Value);
+                await _context.SaveChangesAsync();
+                return Ok(new { Materia = materia, MetodoCosteo = "Costo promedio ponderado", Entrada = entrada });
+            }
+
+            var salida = await _costeo.RegistrarSalidaInventarioAsync(id, -diferencia);
+            await _context.SaveChangesAsync();
+            return Ok(new { Materia = materia, MetodoCosteo = "Costo promedio ponderado", Salida = salida });
+        }
+
+        /// <summary>
+        /// Consume materia prima para fabricar unidades del producto. Cada salida se
+        /// valua al ultimo costo promedio calculado, que es el que la empresa usa
+        /// para el costo de lo vendido.
+        /// </summary>
+        [HttpPost("produccion")]
+        public async Task<IActionResult> RegistrarProduccion([FromBody] ProduccionRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var consumo = await _costeo.RegistrarConsumoProduccionAsync(request.ProductoId, request.Unidades);
+            if (consumo == null)
+            {
+                return NotFound("Producto no encontrado.");
+            }
+
+            if (!consumo.Aplicado)
+            {
+                return BadRequest(new
+                {
+                    Message = "No hay inventario suficiente; no se descontó ningún insumo.",
+                    consumo.Faltantes
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(consumo);
         }
 
         [HttpDelete("{id}")]

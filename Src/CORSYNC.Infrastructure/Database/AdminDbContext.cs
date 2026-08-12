@@ -258,23 +258,22 @@ namespace CORSYNC.Infrastructure.Database
                 new Proveedor { Id = 4, Nombre = "Baterías Litio del Norte", Contacto = "Ing. Omar Treviño", Email = "compras@bateriasnorte.mx", Telefono = "+52 81 8340 7755", Direccion = "Av. Industrial 900, Monterrey", Pais = "México", Activo = true, FechaAlta = alta }
             );
 
-            // Costos expresados como costo promedio ponderado inicial.
+            // Costos en MXN, expresados como costo promedio ponderado inicial. Salvo la
+            // carcasa, cada importe es el precio realmente pagado en la compra del
+            // prototipo; las recepciones posteriores lo iran promediando.
             modelBuilder.Entity<MateriaPrima>().HasData(
-                new MateriaPrima { Id = 1, Nombre = "Tela elástica para manga", Descripcion = "Tejido elástico hipoalergénico que sostiene los sensores contra el antebrazo.", CostoUnidad = 3.10m, UnidadMedida = "pieza", Stock = 1200, StockMinimo = 300, ProveedorId = 2, Activo = true },
-                new MateriaPrima { Id = 2, Nombre = "Carcasa de plástico impresa en 3D", Descripcion = "Carcasa impresa en 3D en filamento plástico, diseñada a medida para alojar los sensores.", CostoUnidad = 9.80m, UnidadMedida = "pieza", Stock = 800, StockMinimo = 200, ProveedorId = 2, Activo = true },
-                new MateriaPrima { Id = 3, Nombre = "Sensor MCU-6701 (GSR)", Descripcion = "Módulo de conductancia de la piel para medición de activación fisiológica.", CostoUnidad = 6.50m, UnidadMedida = "pieza", Stock = 640, StockMinimo = 150, ProveedorId = 1, Activo = true },
-                new MateriaPrima { Id = 4, Nombre = "Sensor MAX30102", Descripcion = "Sensor de ritmo cardíaco y HRV.", CostoUnidad = 8.00m, UnidadMedida = "pieza", Stock = 700, StockMinimo = 150, ProveedorId = 1, Activo = true },
-                new MateriaPrima { Id = 5, Nombre = "Módulo ESP32 (MCU + Wi-Fi)", Descripcion = "Microcontrolador con Wi-Fi y Bluetooth integrados.", CostoUnidad = 12.00m, UnidadMedida = "pieza", Stock = 520, StockMinimo = 120, ProveedorId = 1, Activo = true },
-                new MateriaPrima { Id = 6, Nombre = "Pila recargable de 9V", Descripcion = "Pila recargable de 9V que alimenta la manga durante la sesión de medición.", CostoUnidad = 4.20m, UnidadMedida = "pieza", Stock = 900, StockMinimo = 250, ProveedorId = 4, Activo = true },
-                new MateriaPrima { Id = 7, Nombre = "Electrodos de acero inoxidable 316L", Descripcion = "Par de electrodos de contacto para la lectura galvánica.", CostoUnidad = 2.40m, UnidadMedida = "par", Stock = 1500, StockMinimo = 300, ProveedorId = 2, Activo = true },
-                new MateriaPrima { Id = 8, Nombre = "PCB flexible de 4 capas", Descripcion = "Placa flexible que integra sensores, MCU y batería.", CostoUnidad = 7.60m, UnidadMedida = "pieza", Stock = 450, StockMinimo = 150, ProveedorId = 3, Activo = true },
-                new MateriaPrima { Id = 9, Nombre = "Cargador magnético inalámbrico", Descripcion = "Base de carga magnética con cable USB-C incluido.", CostoUnidad = 5.30m, UnidadMedida = "pieza", Stock = 600, StockMinimo = 150, ProveedorId = 3, Activo = true },
-                new MateriaPrima { Id = 10, Nombre = "Empaque premium y manual impreso", Descripcion = "Caja rígida, inserto de espuma y guía de inicio rápido.", CostoUnidad = 2.90m, UnidadMedida = "kit", Stock = 1000, StockMinimo = 250, ProveedorId = 2, Activo = true }
+                new MateriaPrima { Id = 1, Nombre = "Carcasa impresa en 3D", Descripcion = "Carcasa impresa en 3D en filamento PLA, diseñada a medida para alojar los sensores.", CostoUnidad = 100.00m, UnidadMedida = "pieza", Stock = 800, StockMinimo = 200, ProveedorId = 2, Activo = true },
+                new MateriaPrima { Id = 2, Nombre = "Sensor MCU-6701 (GSR)", Descripcion = "Módulo de conductancia de la piel para medición de activación fisiológica.", CostoUnidad = 259.96m, UnidadMedida = "pieza", Stock = 640, StockMinimo = 150, ProveedorId = 1, Activo = true },
+                new MateriaPrima { Id = 3, Nombre = "Sensor MAX30102", Descripcion = "Sensor de ritmo cardíaco y HRV.", CostoUnidad = 64.24m, UnidadMedida = "pieza", Stock = 700, StockMinimo = 150, ProveedorId = 1, Activo = true },
+                new MateriaPrima { Id = 4, Nombre = "Módulo ESP32 (MCU + Wi-Fi)", Descripcion = "Microcontrolador con Wi-Fi y Bluetooth integrados.", CostoUnidad = 129.99m, UnidadMedida = "pieza", Stock = 520, StockMinimo = 120, ProveedorId = 1, Activo = true },
+                new MateriaPrima { Id = 5, Nombre = "Batería recargable de 9V (500 mAh)", Descripcion = "Batería recargable de 9V y 500 mAh que alimenta la manga durante la sesión de medición.", CostoUnidad = 150.00m, UnidadMedida = "pieza", Stock = 900, StockMinimo = 250, ProveedorId = 4, Activo = true },
+                new MateriaPrima { Id = 6, Nombre = "Módulo indicador de carga XW228DKFR4", Descripcion = "Módulo indicador del nivel de carga de la batería.", CostoUnidad = 80.00m, UnidadMedida = "pieza", Stock = 600, StockMinimo = 150, ProveedorId = 3, Activo = true },
+                new MateriaPrima { Id = 7, Nombre = "Regulador de voltaje", Descripcion = "Regulador que estabiliza la salida de la batería de 9V hacia los sensores y el MCU.", CostoUnidad = 95.60m, UnidadMedida = "pieza", Stock = 600, StockMinimo = 150, ProveedorId = 3, Activo = true }
             );
 
-            // Costo primo objetivo: materia prima 61.80 + mano de obra 18.20 = 80.00
-            // Gastos indirectos 25% = 20.00  ->  costo unitario 100.00
-            // Margen 199%                    ->  precio de lista 299.00
+            // Costo primo: materia prima 879.79 + mano de obra 60.00 = 939.79
+            // Gastos indirectos 25% = 234.95  ->  costo unitario 1,174.74
+            // Margen 50%                      ->  precio de lista 1,762.11
             modelBuilder.Entity<Producto>().HasData(
                 new Producto
                 {
@@ -282,9 +281,9 @@ namespace CORSYNC.Infrastructure.Database
                     Nombre = "CORSYNC",
                     Descripcion = "Manga biométrica que mide tu actividad galvánica y tu ritmo cardíaco para generar tu aura digital.",
                     DescripcionLarga = "CORSYNC es una manga que se coloca en el antebrazo y lee de forma continua dos señales de tu cuerpo: la actividad electrodermal de tu piel, mediante el sensor MCU-6701, y tu ritmo cardíaco, mediante el sensor MAX30102. Ambas señales viajan por Wi-Fi a la aplicación móvil, donde se traducen en un aura: una representación de color que refleja tu estado en ese momento. El aura se puede guardar, revisar en tu historial y compartir con las personas que elijas.",
-                    ManoObraUnitaria = 18.20m,
+                    ManoObraUnitaria = 60.00m,
                     OverheadPorcentaje = 0.25m,
-                    MargenUtilidad = 1.99m,
+                    MargenUtilidad = 0.50m,
                     Activo = true,
                     FechaCreacion = alta
                 }
@@ -297,10 +296,7 @@ namespace CORSYNC.Infrastructure.Database
                 new RecetaProducto { Id = 4, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 4, CantidadRequerida = 1, MermaPorcentaje = 0 },
                 new RecetaProducto { Id = 5, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 5, CantidadRequerida = 1, MermaPorcentaje = 0 },
                 new RecetaProducto { Id = 6, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 6, CantidadRequerida = 1, MermaPorcentaje = 0 },
-                new RecetaProducto { Id = 7, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 7, CantidadRequerida = 1, MermaPorcentaje = 0 },
-                new RecetaProducto { Id = 8, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 8, CantidadRequerida = 1, MermaPorcentaje = 0 },
-                new RecetaProducto { Id = 9, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 9, CantidadRequerida = 1, MermaPorcentaje = 0 },
-                new RecetaProducto { Id = 10, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 10, CantidadRequerida = 1, MermaPorcentaje = 0 }
+                new RecetaProducto { Id = 7, ProductoId = 1, NombreProducto = "CORSYNC", MateriaPrimaId = 7, CantidadRequerida = 1, MermaPorcentaje = 0 }
             );
 
             // Galeria del producto. Estas imagenes viven en el repositorio bajo
@@ -334,12 +330,12 @@ namespace CORSYNC.Infrastructure.Database
                 // Las filas de Dimensiones, Correa, Resistencia y Carga se retiraron:
                 // no aplican a la manga o siguen pendientes del dato de fabricacion.
                 new EspecificacionProducto { Id = 2, ProductoId = 1, Orden = 2, Grupo = "Físicas", Campo = "Peso", Valor = "210 g" },
-                new EspecificacionProducto { Id = 3, ProductoId = 1, Orden = 3, Grupo = "Físicas", Campo = "Carcasa", Valor = "Plástico de impresión 3D" },
+                new EspecificacionProducto { Id = 3, ProductoId = 1, Orden = 3, Grupo = "Físicas", Campo = "Carcasa", Valor = "PLA de impresión 3D" },
                 new EspecificacionProducto { Id = 6, ProductoId = 1, Orden = 6, Grupo = "Sensores", Campo = "Conductancia", Valor = "MCU-6701" },
                 new EspecificacionProducto { Id = 7, ProductoId = 1, Orden = 7, Grupo = "Sensores", Campo = "Pulso", Valor = "MAX30102" },
                 new EspecificacionProducto { Id = 9, ProductoId = 1, Orden = 9, Grupo = "Sensores", Campo = "Rango de pulso", Valor = "30 – 220 BPM" },
                 new EspecificacionProducto { Id = 10, ProductoId = 1, Orden = 10, Grupo = "Sistema", Campo = "Procesador", Valor = "ESP32 con Wi-Fi y Bluetooth" },
-                new EspecificacionProducto { Id = 11, ProductoId = 1, Orden = 11, Grupo = "Sistema", Campo = "Batería", Valor = "Pila recargable de 9V" },
+                new EspecificacionProducto { Id = 11, ProductoId = 1, Orden = 11, Grupo = "Sistema", Campo = "Batería", Valor = "Recargable de 9V · 500 mAh" },
                 new EspecificacionProducto { Id = 12, ProductoId = 1, Orden = 12, Grupo = "Sistema", Campo = "Autonomía", Valor = "Hasta 5 horas de uso continuo" },
                 new EspecificacionProducto { Id = 14, ProductoId = 1, Orden = 14, Grupo = "Sistema", Campo = "Compatibilidad", Valor = "iOS 14+ · Android 11+" }
             );
@@ -363,7 +359,7 @@ namespace CORSYNC.Infrastructure.Database
             );
 
             modelBuilder.Entity<CompraCliente>().HasData(
-                new CompraCliente { Id = 1, UsuarioId = 2, ProductoId = 1, Folio = "VTA-2026-0001", Cantidad = 1, Monto = 346.84m, Estado = "Entregado", NumeroSerie = "CS-2026-000418", Resenado = false, FechaCompra = alta.AddDays(135) }
+                new CompraCliente { Id = 1, UsuarioId = 2, ProductoId = 1, Folio = "VTA-2026-0001", Cantidad = 1, Monto = 2044.05m, Estado = "Entregado", NumeroSerie = "CS-2026-000418", Resenado = false, FechaCompra = alta.AddDays(135) }
             );
 
             modelBuilder.Entity<PreguntaFrecuente>().HasData(

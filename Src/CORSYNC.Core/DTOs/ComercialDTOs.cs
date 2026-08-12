@@ -199,6 +199,66 @@ namespace CORSYNC.Core.DTOs
         public decimal CostoPromedioNuevo { get; set; }
     }
 
+    /// <summary>
+    /// Salida de inventario valuada al costo promedio ponderado vigente. Una salida
+    /// no recalcula el promedio: consume existencias al ultimo promedio calculado y
+    /// ese mismo promedio queda valuando el saldo restante.
+    /// </summary>
+    public class SalidaCosteoResponse
+    {
+        public int MateriaPrimaId { get; set; }
+        public string MateriaPrima { get; set; } = string.Empty;
+        public string UnidadMedida { get; set; } = string.Empty;
+        public decimal StockAnterior { get; set; }
+        public decimal CantidadSalida { get; set; }
+        public decimal StockNuevo { get; set; }
+        /// <summary>Costo promedio con el que se valuo la salida; no cambia por la salida.</summary>
+        public decimal CostoPromedio { get; set; }
+        /// <summary>Cantidad de salida x costo promedio.</summary>
+        public decimal ImporteSalida { get; set; }
+        /// <summary>Saldo que queda en existencias: stock restante x costo promedio.</summary>
+        public decimal SaldoValorizado { get; set; }
+    }
+
+    /// <summary>Ajuste manual de existencias por merma o conteo fisico.</summary>
+    public class AjusteStockRequest
+    {
+        [Range(0, 1000000, ErrorMessage = "El stock no puede ser negativo.")]
+        public decimal NuevoStock { get; set; }
+
+        /// <summary>
+        /// Obligatorio solo cuando el ajuste aumenta las existencias: es el costo al
+        /// que entran las unidades nuevas y con el que se recalcula el promedio.
+        /// </summary>
+        [Range(0, 1000000, ErrorMessage = "El costo unitario no puede ser negativo.")]
+        public decimal? CostoUnitario { get; set; }
+    }
+
+    public class ProduccionRequest
+    {
+        [Range(1, int.MaxValue)]
+        public int ProductoId { get; set; }
+
+        [Range(1, 100000, ErrorMessage = "Las unidades a producir deben ser mayores a cero.")]
+        public int Unidades { get; set; }
+    }
+
+    /// <summary>Consumo de materia prima al fabricar unidades de un producto.</summary>
+    public class ConsumoProduccionResponse
+    {
+        public int ProductoId { get; set; }
+        public string Producto { get; set; } = string.Empty;
+        public int Unidades { get; set; }
+        public string MetodoCosteo { get; set; } = "Costo promedio ponderado";
+        /// <summary>False cuando falto inventario: en ese caso no se descuento nada.</summary>
+        public bool Aplicado { get; set; }
+        /// <summary>Insumos que impidieron aplicar la produccion.</summary>
+        public List<string> Faltantes { get; set; } = new List<string>();
+        public List<SalidaCosteoResponse> Salidas { get; set; } = new List<SalidaCosteoResponse>();
+        /// <summary>Suma de las salidas valuadas al promedio.</summary>
+        public decimal CostoMateriaPrimaConsumida { get; set; }
+    }
+
     // ---------------------------------------------------------------------
     // Administracion de usuarios
     // ---------------------------------------------------------------------

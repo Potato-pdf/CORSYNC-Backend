@@ -487,15 +487,29 @@ Compra a proveedor recibida
    └─> total            = (subtotal − descuento por volumen + servicios) × 1.16
 ```
 
+Las **salidas** cierran el ciclo: consumir inventario (producción) descuenta
+existencias valuándolas al último promedio calculado, *sin* modificarlo. No importa
+de qué compra salieron las unidades; todas valen el promedio vigente, y el saldo
+restante conserva ese mismo costo por unidad:
+
+```
+Saldo ÷ Existencias = costo promedio
+   compra → recalcula el promedio
+   salida → se valúa a ese promedio y lo deja igual
+   compra → vuelve a recalcular
+```
+
+Importes en MXN, con el costo real de compra de cada componente:
+
 | Concepto | Importe |
 | :--- | ---: |
-| Materia prima (10 insumos) | $61.80 |
-| Mano de obra directa | $18.20 |
-| **Costo primo** | **$80.00** |
-| Gastos indirectos (25 %) | $20.00 |
-| **Costo unitario** | **$100.00** |
-| Margen de utilidad (199 %) | $199.00 |
-| **Precio de lista** | **$299.00** |
+| Materia prima (7 insumos) | $879.79 |
+| Mano de obra directa | $60.00 |
+| **Costo primo** | **$939.79** |
+| Gastos indirectos (25 %) | $234.95 |
+| **Costo unitario** | **$1,174.74** |
+| Margen de utilidad (50 %) | $587.37 |
+| **Precio de lista** | **$1,762.11** |
 
 Licencias: Individual ×1.00 · Corporativa ×0.90 · Enterprise ×0.83
 Descuentos por volumen: 10 % desde 10 uds · 15 % desde 50 · 20 % desde 100

@@ -26,6 +26,11 @@ namespace CORSYNC.Tests
             return context;
         }
 
+        // Ids del catalogo: 1 carcasa 3D, 2 MCU-6701, 3 MAX30102, 4 ESP32,
+        // 5 bateria 9V, 6 indicador de carga, 7 regulador de voltaje.
+        private const int Esp32 = 4;
+        private const int Max30102 = 3;
+
         [Fact]
         public async Task CalcularCostoProducto_ExplosionaLaRecetaCompleta()
         {
@@ -36,12 +41,13 @@ namespace CORSYNC.Tests
 
             Assert.NotNull(costo);
             Assert.Equal("CORSYNC", costo!.Producto);
-            Assert.Equal(10, costo.Materiales.Count);
-            Assert.Equal(61.80m, costo.CostoMateriaPrima);
-            Assert.Equal(80.00m, costo.CostoPrimo);
-            Assert.Equal(20.00m, costo.CostoIndirecto);
-            Assert.Equal(100.00m, costo.CostoUnitario);
-            Assert.Equal(299.00m, costo.PrecioLista);
+            Assert.Equal(7, costo.Materiales.Count);
+            // 100.00 + 259.96 + 64.24 + 129.99 + 150.00 + 80.00 + 95.60
+            Assert.Equal(879.79m, costo.CostoMateriaPrima);
+            Assert.Equal(939.79m, costo.CostoPrimo);      // + mano de obra 60.00
+            Assert.Equal(234.95m, costo.CostoIndirecto);  // 25% del costo primo
+            Assert.Equal(1174.74m, costo.CostoUnitario);
+            Assert.Equal(1762.11m, costo.PrecioLista);    // margen 50%
         }
 
         [Fact]
@@ -49,9 +55,8 @@ namespace CORSYNC.Tests
         {
             using var context = GetDbContext();
 
-            // El PCB flexible es el insumo con menos existencias (450 piezas).
-            var pcb = context.MateriasPrimas.Single(m => m.Nombre == "PCB flexible de 4 capas");
-            pcb.Stock = 37;
+            var esp32 = context.MateriasPrimas.Single(m => m.Id == Esp32);
+            esp32.Stock = 37;
             await context.SaveChangesAsync();
 
             var costo = await new CosteoService(context).CalcularCostoProductoAsync(1);
@@ -65,17 +70,17 @@ namespace CORSYNC.Tests
         {
             using var context = GetDbContext();
 
-            // 10% de merma sobre la correa de silicona (3.10 por pieza).
+            // 10% de merma sobre la carcasa impresa en 3D (100.00 por pieza).
             var renglon = context.RecetasProductos.Single(r => r.MateriaPrimaId == 1);
             renglon.MermaPorcentaje = 0.10m;
             await context.SaveChangesAsync();
 
             var costo = await new CosteoService(context).CalcularCostoProductoAsync(1);
 
-            var correa = costo!.Materiales.Single(m => m.MateriaPrimaId == 1);
-            Assert.Equal(1.1m, correa.CantidadConMerma);
-            Assert.Equal(3.41m, correa.CostoTotal);          // 1.1 x 3.10
-            Assert.Equal(62.11m, costo.CostoMateriaPrima);   // 61.80 - 3.10 + 3.41
+            var carcasa = costo!.Materiales.Single(m => m.MateriaPrimaId == 1);
+            Assert.Equal(1.1m, carcasa.CantidadConMerma);
+            Assert.Equal(110.00m, carcasa.CostoTotal);        // 1.1 x 100.00
+            Assert.Equal(889.79m, costo.CostoMateriaPrima);   // 879.79 - 100.00 + 110.00
         }
 
         [Fact]
@@ -84,20 +89,43 @@ namespace CORSYNC.Tests
             using var context = GetDbContext();
             var servicio = new CosteoService(context);
 
-            // Existencia inicial del sensor MAX30102: 700 piezas a 8.00
-            // Entrada: 300 piezas a 12.00
-            // Promedio ponderado = (700*8 + 300*12) / 1000 = 9200 / 1000 = 9.20
-            var impacto = await servicio.RegistrarEntradaInventarioAsync(4, 300m, 12.00m);
+            // Existencia inicial del MAX30102: 700 piezas a 64.24
+            // Entrada: 300 piezas a 80.00
+            // Promedio = (700*64.24 + 300*80) / 1000 = 68968 / 1000 = 68.968
+            var impacto = await servicio.RegistrarEntradaInventarioAsync(Max30102, 300m, 80.00m);
             await context.SaveChangesAsync();
 
             Assert.NotNull(impacto);
             Assert.Equal(700m, impacto!.StockAnterior);
-            Assert.Equal(8.00m, impacto.CostoAnterior);
+            Assert.Equal(64.24m, impacto.CostoAnterior);
             Assert.Equal(1000m, impacto.StockNuevo);
-            Assert.Equal(9.20m, impacto.CostoPromedioNuevo);
+            Assert.Equal(68.968m, impacto.CostoPromedioNuevo);
 
-            var insumo = await context.MateriasPrimas.FindAsync(4);
-            Assert.Equal(9.20m, insumo!.CostoUnidad);
+            var insumo = await context.MateriasPrimas.FindAsync(Max30102);
+            Assert.Equal(68.968m, insumo!.CostoUnidad);
+        }
+
+        /// <summary>
+        /// El caso del enunciado del metodo: 9 ESP32 a 129.99 y despues 3 a 140.
+        /// Saldo (9x129.99 + 3x140) = 1,589.91 entre 12 existencias = 132.4925.
+        /// </summary>
+        [Fact]
+        public async Task RegistrarEntradaInventario_SegundaCompraAOtroPrecio_RecalculaElPromedio()
+        {
+            using var context = GetDbContext();
+
+            var esp32 = context.MateriasPrimas.Single(m => m.Id == Esp32);
+            esp32.Stock = 9m;
+            esp32.CostoUnidad = 129.99m;
+            await context.SaveChangesAsync();
+
+            var servicio = new CosteoService(context);
+            var impacto = await servicio.RegistrarEntradaInventarioAsync(Esp32, 3m, 140.00m);
+            await context.SaveChangesAsync();
+
+            Assert.NotNull(impacto);
+            Assert.Equal(12m, impacto!.StockNuevo);
+            Assert.Equal(132.4925m, impacto.CostoPromedioNuevo);
         }
 
         [Fact]
@@ -106,16 +134,16 @@ namespace CORSYNC.Tests
             using var context = GetDbContext();
             var servicio = new CosteoService(context);
 
-            // Encarecer un insumo debe subir el costo unitario y el precio de lista.
-            await servicio.RegistrarEntradaInventarioAsync(5, 520m, 20.00m); // ESP32: 520 a 12.00 + 520 a 20.00
+            // ESP32: 520 a 129.99 + 520 a 170.01 -> promedio 150.00 (+20.01 por unidad).
+            await servicio.RegistrarEntradaInventarioAsync(Esp32, 520m, 170.01m);
             await context.SaveChangesAsync();
 
-            var esp32 = await context.MateriasPrimas.FindAsync(5);
-            Assert.Equal(16.00m, esp32!.CostoUnidad); // promedio de 12 y 20 con cantidades iguales
+            var esp32 = await context.MateriasPrimas.FindAsync(Esp32);
+            Assert.Equal(150.00m, esp32!.CostoUnidad);
 
             var costo = await servicio.CalcularCostoProductoAsync(1);
-            Assert.Equal(65.80m, costo!.CostoMateriaPrima);   // 61.80 + 4.00
-            Assert.True(costo.PrecioLista > 299.00m);
+            Assert.Equal(899.80m, costo!.CostoMateriaPrima);   // 879.79 + 20.01
+            Assert.True(costo.PrecioLista > 1762.11m);
         }
 
         [Fact]
@@ -124,12 +152,108 @@ namespace CORSYNC.Tests
             using var context = GetDbContext();
             var servicio = new CosteoService(context);
 
-            var impacto = await servicio.RegistrarEntradaInventarioAsync(4, 0m, 15.00m);
+            var impacto = await servicio.RegistrarEntradaInventarioAsync(Max30102, 0m, 15.00m);
 
             Assert.Null(impacto);
-            var insumo = await context.MateriasPrimas.FindAsync(4);
-            Assert.Equal(8.00m, insumo!.CostoUnidad);
+            var insumo = await context.MateriasPrimas.FindAsync(Max30102);
+            Assert.Equal(64.24m, insumo!.CostoUnidad);
             Assert.Equal(700m, insumo.Stock);
+        }
+
+        // -----------------------------------------------------------------
+        // Salidas: se valuan al ultimo promedio y no lo modifican.
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// El otro caso del enunciado: 10 unidades a 137 valen 1,370; al salir 2 se
+        /// valuan en 274 y quedan 8 a 137, es decir 1,096 de saldo.
+        /// </summary>
+        [Fact]
+        public async Task RegistrarSalidaInventario_UsaElUltimoPromedioYNoLoCambia()
+        {
+            using var context = GetDbContext();
+
+            var esp32 = context.MateriasPrimas.Single(m => m.Id == Esp32);
+            esp32.Stock = 10m;
+            esp32.CostoUnidad = 137.00m;
+            await context.SaveChangesAsync();
+
+            var salida = await new CosteoService(context).RegistrarSalidaInventarioAsync(Esp32, 2m);
+            await context.SaveChangesAsync();
+
+            Assert.NotNull(salida);
+            Assert.Equal(10m, salida!.StockAnterior);
+            Assert.Equal(137.00m, salida.CostoPromedio);
+            Assert.Equal(274.00m, salida.ImporteSalida);
+            Assert.Equal(8m, salida.StockNuevo);
+            Assert.Equal(1096.00m, salida.SaldoValorizado);
+
+            // El costo por unidad sigue siendo el mismo despues de la salida.
+            var despues = await context.MateriasPrimas.FindAsync(Esp32);
+            Assert.Equal(137.00m, despues!.CostoUnidad);
+        }
+
+        [Fact]
+        public async Task RegistrarSalidaInventario_SinExistenciasSuficientes_NoDescuenta()
+        {
+            using var context = GetDbContext();
+            var servicio = new CosteoService(context);
+
+            var salida = await servicio.RegistrarSalidaInventarioAsync(Esp32, 100000m);
+
+            Assert.Null(salida);
+            var insumo = await context.MateriasPrimas.FindAsync(Esp32);
+            Assert.Equal(520m, insumo!.Stock);
+        }
+
+        [Fact]
+        public async Task RegistrarConsumoProduccion_DescuentaLaRecetaAlCostoPromedio()
+        {
+            using var context = GetDbContext();
+            var servicio = new CosteoService(context);
+
+            var consumo = await servicio.RegistrarConsumoProduccionAsync(1, 3);
+            await context.SaveChangesAsync();
+
+            Assert.NotNull(consumo);
+            Assert.True(consumo!.Aplicado);
+            Assert.Empty(consumo.Faltantes);
+            Assert.Equal(7, consumo.Salidas.Count);
+            Assert.Equal(2639.37m, consumo.CostoMateriaPrimaConsumida); // 879.79 x 3
+
+            var esp32 = await context.MateriasPrimas.FindAsync(Esp32);
+            Assert.Equal(517m, esp32!.Stock);          // 520 - 3
+            Assert.Equal(129.99m, esp32.CostoUnidad);  // el promedio no cambia
+        }
+
+        [Fact]
+        public async Task RegistrarConsumoProduccion_SiFaltaUnInsumo_NoDescuentaNinguno()
+        {
+            using var context = GetDbContext();
+
+            var esp32 = context.MateriasPrimas.Single(m => m.Id == Esp32);
+            esp32.Stock = 2m;
+            await context.SaveChangesAsync();
+
+            var consumo = await new CosteoService(context).RegistrarConsumoProduccionAsync(1, 5);
+
+            Assert.NotNull(consumo);
+            Assert.False(consumo!.Aplicado);
+            Assert.NotEmpty(consumo.Faltantes);
+            Assert.Empty(consumo.Salidas);
+
+            // Ningun insumo se movio, ni siquiera los que si alcanzaban.
+            var max = await context.MateriasPrimas.FindAsync(Max30102);
+            Assert.Equal(700m, max!.Stock);
+            Assert.Equal(2m, esp32.Stock);
+        }
+
+        [Fact]
+        public async Task RegistrarConsumoProduccion_ProductoInexistente_DevuelveNull()
+        {
+            using var context = GetDbContext();
+            var consumo = await new CosteoService(context).RegistrarConsumoProduccionAsync(999, 1);
+            Assert.Null(consumo);
         }
 
         [Fact]
